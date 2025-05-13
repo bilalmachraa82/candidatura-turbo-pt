@@ -7,6 +7,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/AuthContext';
 import Layout from '@/components/Layout';
+import NewProjectDialog from '@/components/NewProjectDialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface Project {
   id: string;
@@ -43,6 +45,8 @@ const mockProjects: Project[] = [
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const getStatusColor = (status: Project['status']) => {
     switch (status) {
@@ -64,6 +68,23 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleCreateProject = (projectData: { name: string }) => {
+    const newProject: Project = {
+      id: Date.now().toString(),
+      name: projectData.name,
+      date: new Date().toISOString().slice(0, 10),
+      progress: 0,
+      status: 'draft',
+    };
+    
+    setProjects([newProject, ...projects]);
+    
+    toast({
+      title: 'Projeto criado',
+      description: `O projeto "${projectData.name}" foi criado com sucesso.`
+    });
+  };
+
   return (
     <Layout>
       <div className="pt-container pt-section">
@@ -73,7 +94,10 @@ const DashboardPage: React.FC = () => {
             <p className="text-gray-600 mt-1">Bem-vindo ao seu painel de gestão de projetos PT2030</p>
           </div>
           <div className="mt-4 md:mt-0">
-            <Button className="bg-pt-green hover:bg-pt-green/90">
+            <Button 
+              className="bg-pt-green hover:bg-pt-green/90"
+              onClick={() => setDialogOpen(true)}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Novo Projeto
             </Button>
@@ -127,6 +151,12 @@ const DashboardPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      <NewProjectDialog 
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onCreateProject={handleCreateProject}
+      />
     </Layout>
   );
 };
