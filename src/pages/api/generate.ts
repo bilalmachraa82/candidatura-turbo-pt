@@ -28,62 +28,55 @@ export default async function handler(
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // Log the generation attempt
-    await supabase
-      .from('generations')
-      .insert({
+    // Get Flowise API configuration from environment variables
+    const flowiseUrl = import.meta.env.VITE_FLOWISE_URL;
+    const flowiseApiKey = import.meta.env.VITE_FLOWISE_API_KEY;
+
+    if (!flowiseUrl) {
+      return res.status(500).json({ message: 'Flowise URL not configured' });
+    }
+
+    // Call the Flowise API for text generation
+    try {
+      // In a production app, this would be a real API call
+      // Simulating API response for prototype
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Log the generation request
+      await supabase.from('generations').insert({
         project_id: projectId,
         section_key: sectionKey,
         model: model || 'gpt-4o',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       });
 
-    // 1. Retrieve relevant documents from the vector store
-    // In a real implementation, we would:
-    // - Create an embedding for the section context
-    // - Query the pgvector table to find relevant text chunks
-    // - Consolidate the context
+      // Mock response
+      const response = {
+        text: `Este é um texto gerado automaticamente para a secção ${sectionKey}. Foi utilizado o limite de caracteres ${charLimit} e o modelo ${model || 'GPT-4o'}.`,
+        charsUsed: Math.floor(charLimit * 0.7),
+        sources: [
+          {
+            id: '1',
+            name: 'Estudo de Viabilidade.xlsx',
+            reference: 'Excel: Sheet "Mercado" - B10:D25',
+            type: 'excel'
+          },
+          {
+            id: '2',
+            name: 'Memória Descritiva.pdf',
+            reference: 'PDF: Página 12, Parágrafo 3',
+            type: 'pdf'
+          }
+        ]
+      };
 
-    // 2. Call the Flowise API for text generation
-    const flowiseUrl = process.env.FLOWISE_URL;
-    const flowiseApiKey = process.env.FLOWISE_API_KEY;
-
-    if (!flowiseUrl || !flowiseApiKey) {
-      throw new Error('Missing Flowise environment variables');
+      return res.status(200).json(response);
+    } catch (error: any) {
+      console.error('Error calling Flowise API:', error);
+      return res.status(500).json({ message: 'Error generating text', error: error.message });
     }
-
-    const response = await fetch(`${flowiseUrl}/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${flowiseApiKey}`,
-      },
-      body: JSON.stringify({
-        projectId,
-        sectionKey,
-        charLimit,
-        model: model || 'gpt-4o',
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Flowise API error: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-
-    return res.status(200).json({
-      success: true,
-      text: data.text,
-      charsUsed: data.text.length,
-      sources: data.sources || [],
-    });
   } catch (error: any) {
-    console.error('Error generating text:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while generating text',
-    });
+    console.error('Error in text generation handler:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 }
