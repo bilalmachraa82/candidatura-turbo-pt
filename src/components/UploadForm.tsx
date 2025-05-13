@@ -72,38 +72,62 @@ const UploadForm: React.FC<UploadFormProps> = ({
     
     setIsLoading(true);
 
-    // Simulate file upload delay
     try {
-      // Here we would actually upload to Supabase storage
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Convert file to base64 for API transmission
+      const reader = new FileReader();
+      reader.readAsArrayBuffer(uploadedFile);
       
-      const mockFileUrl = `https://storage.turismoportugal.pt/${projectId}/${uploadedFile.name}`;
-      
-      // After successful upload
-      toast({
-        title: "Ficheiro carregado com sucesso",
-        description: `${uploadedFile.name} foi carregado e será indexado automaticamente.`
-      });
-      
-      // Call the callback with file info
-      if (onFileUploaded) {
-        onFileUploaded({
-          name: uploadedFile.name,
-          url: mockFileUrl,
-          type: uploadedFile.type
+      reader.onload = async () => {
+        const arrayBuffer = reader.result;
+        
+        // Call the API to upload and index the file
+        const response = await fetch('/api/index', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            projectId,
+            file: {
+              name: uploadedFile.name,
+              data: arrayBuffer,
+              type: uploadedFile.type
+            }
+          }),
         });
-      }
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.message || 'Erro no upload do ficheiro');
+        }
+        
+        toast({
+          title: "Ficheiro carregado com sucesso",
+          description: `${uploadedFile.name} foi carregado e será indexado automaticamente.`
+        });
+        
+        // Call the callback with file info
+        if (onFileUploaded && result.file) {
+          onFileUploaded(result.file);
+        }
 
-      // Reset the form state
-      setUploadedFile(null);
-    } catch (error) {
+        // Reset the form state
+        setUploadedFile(null);
+        setIsLoading(false);
+      };
+      
+      reader.onerror = () => {
+        throw new Error('Erro ao ler o ficheiro');
+      };
+      
+    } catch (error: any) {
       console.error("Upload error:", error);
       toast({
         variant: "destructive",
         title: "Erro no carregamento",
-        description: "Não foi possível carregar o ficheiro. Por favor tente novamente."
+        description: error.message || "Não foi possível carregar o ficheiro. Por favor tente novamente."
       });
-    } finally {
       setIsLoading(false);
     }
   };

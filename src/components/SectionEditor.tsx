@@ -46,29 +46,37 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     setIsGenerating(true);
     
     try {
-      // Mock API call - would be replaced with actual AI generation call
-      // POST /api/generate with { projectId, sectionKey, charLimit }
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId,
+          sectionKey,
+          charLimit,
+          model: selectedModel
+        }),
+      });
       
-      // Mock response
-      const generatedText = `Este é um texto gerado pelo modelo de IA ${selectedModel} para a secção "${title}" do projeto ${projectId}. 
-
-O texto foi gerado considerando os documentos carregados e adaptado aos limites de caracteres estabelecidos (${charLimit}). Esta proposta aborda os pontos principais necessários para esta secção, incluindo análise de mercado, público-alvo e previsões.
-
-Os dados extraídos dos seus documentos carregados foram utilizados para informar esta geração, garantindo que o conteúdo está alinhado com a sua estratégia.`;
-
-      setText(generatedText);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro na geração de texto');
+      }
+      
+      const data = await response.json();
+      setText(data.text);
       
       toast({
         title: "Texto gerado com sucesso",
         description: `Gerado utilizando ${selectedModel}.`
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Generation error:", error);
       toast({
         variant: "destructive",
         title: "Erro na geração de texto",
-        description: "Não foi possível gerar o texto. Por favor tente novamente."
+        description: error.message || "Não foi possível gerar o texto. Por favor tente novamente."
       });
     } finally {
       setIsGenerating(false);

@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, Home, Contact } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import LogoPT2030 from './LogoPT2030';
 
 type HeaderProps = {
@@ -10,6 +11,18 @@ type HeaderProps = {
 };
 
 const Header: React.FC<HeaderProps> = ({ isLoggedIn = false }) => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
   return (
     <header className="border-b border-border bg-white py-4">
       <div className="pt-container flex justify-between items-center">
@@ -31,6 +44,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn = false }) => {
               variant="outline" 
               className="text-pt-red border-pt-red hover:bg-pt-red hover:text-white"
               size="sm"
+              onClick={handleLogout}
             >
               <LogOut size={18} className="mr-1" />
               <span>Sair</span>
