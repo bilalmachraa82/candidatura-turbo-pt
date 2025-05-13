@@ -1,17 +1,28 @@
 
-import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabase';
 
+// Simplified request/response types
+type Request = {
+  method?: string;
+  body?: any;
+  query?: Record<string, string | string[]>;
+};
+
+type Response = {
+  status: (code: number) => Response;
+  json: (data: any) => void;
+};
+
 export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
+  req: Request,
+  res: Response
 ) {
-  if (req.method !== 'POST') {
+  if (req?.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    const { projectId, sectionKey, charLimit, model } = req.body;
+    const { projectId, sectionKey, charLimit, model } = req.body || {};
 
     if (!projectId || !sectionKey || !charLimit) {
       return res.status(400).json({ message: 'Missing required fields' });
