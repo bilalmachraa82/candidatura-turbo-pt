@@ -5,13 +5,21 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// For development only - this allows the app to load even without real credentials
+// In production, these should be properly set in the environment variables
+const devFallbackUrl = 'https://placeholder-supabase-url.supabase.co';
+const devFallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder-key';
+
 // Check if the environment variables are set
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  console.warn('WARNING: Missing Supabase environment variables. Using development placeholders. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY for proper functionality.');
 }
 
-// Initialize the Supabase client
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+// Initialize the Supabase client with fallback values for development
+export const supabase = createClient(
+  supabaseUrl || devFallbackUrl, 
+  supabaseAnonKey || devFallbackKey
+);
 
 // Authentication helper functions
 export const signIn = async (email: string, password: string) => {

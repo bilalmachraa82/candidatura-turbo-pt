@@ -6,6 +6,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { AIProvider } from "@/context/AIContext";
+import { checkEnvironmentVariables } from "@/utils/envDebugger";
+
+// Debug environment variables in development
+if (import.meta.env.DEV) {
+  checkEnvironmentVariables();
+}
 
 // Pages
 import LoginPage from "./pages/LoginPage";
