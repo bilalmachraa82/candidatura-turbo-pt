@@ -11,6 +11,9 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  server: {
+    port: 8080
+  },
   // Define any environment variables that should be available at build time
   define: {
     // Ensure environment variables are properly exposed

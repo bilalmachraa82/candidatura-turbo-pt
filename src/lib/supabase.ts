@@ -1,38 +1,33 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+// Get Supabase URL and Anon Key from environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Check if the environment variables are set
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
 }
 
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || ''
-);
+// Initialize the Supabase client
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
 
-// Helper functions for auth
+// Authentication helper functions
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data;
 };
 
-export const signUp = async (email: string, password: string, metadata: { name: string }) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
+export const signUp = async (email: string, password: string, metadata?: { [key: string]: any }) => {
+  const { data, error } = await supabase.auth.signUp({ 
+    email, 
     password,
     options: {
       data: metadata
     }
   });
-  
   if (error) throw error;
   return data;
 };
@@ -47,7 +42,7 @@ export const getCurrentUser = async () => {
   return user;
 };
 
-export const getUserSession = async () => {
+export const getSession = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   return session;
 };
