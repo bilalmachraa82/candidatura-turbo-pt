@@ -9,12 +9,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAIContext } from '@/context/AIContext';
+import type { AIModel } from '@/context/AIContext';
 
 const ModelSelector: React.FC = () => {
   const { selectedModel, setSelectedModel } = useAIContext();
 
   const handleModelChange = (value: string) => {
-    setSelectedModel(value);
+    setSelectedModel(value as AIModel);
   };
 
   return (

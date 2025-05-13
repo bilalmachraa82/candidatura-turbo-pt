@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext } from 'react';
 
-type AIModel = 'gpt-4o' | 'gemini-2.5-pro' | 'claude-3.7';
+export type AIModel = 'gpt-4o' | 'gemini-2.5-pro' | 'claude-3.7';
 
 interface AIContextType {
   selectedModel: AIModel;
