@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,17 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// PT2030 Colors
+				pt: {
+					green: '#7AA11F',
+					blue: '#1B365D',
+					red: '#D71920',
 				}
+			},
+			fontFamily: {
+				sans: ['Public Sans', 'system-ui', 'sans-serif'],
+				public: ['Public Sans', 'sans-serif']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
