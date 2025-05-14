@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import LogoPT2030 from '@/components/LogoPT2030';
 import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AuthError } from '@supabase/supabase-js';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -65,7 +66,9 @@ const LoginPage: React.FC = () => {
       if (error) {
         console.log("Erro de autenticação:", error);
         
-        if (error.message?.includes('Service unavailable') || error.status === 503) {
+        if (error.message?.includes('Service unavailable') || 
+            // Check if it's an AuthError with a status property
+            (isAuthError(error) && error.status === 503)) {
           setServiceUnavailable(true);
           setAuthError("O serviço Supabase está temporariamente indisponível. Por favor, tente novamente mais tarde.");
         } else if (error.message?.includes('Invalid login credentials')) {
@@ -82,6 +85,11 @@ const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to type check if the error is an AuthError
+  const isAuthError = (error: Error | AuthError): error is AuthError => {
+    return 'status' in error;
   };
 
   return (
