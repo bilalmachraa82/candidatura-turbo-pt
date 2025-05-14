@@ -3,11 +3,18 @@
 builder = "NIXPACKS"
 nixpacksVersion = "1.11.0"
 buildCommand = "npm run build"
+watchPatterns = ["src/**", "public/**", "index.html", "vite.config.ts"]
 
 [deploy]
 numReplicas = 1
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
+healthcheckPath = "/api/health"
+healthcheckTimeout = 60
+sleepApplication = false
+
+[service]
+autoStart = true
 
 [env]
 NODE_ENV = "production"
@@ -18,10 +25,6 @@ VITE_SUPABASE_URL = "${VITE_SUPABASE_URL}"
 VITE_SUPABASE_ANON_KEY = "${VITE_SUPABASE_ANON_KEY}"
 VITE_FLOWISE_URL = "${VITE_FLOWISE_URL}"
 VITE_FLOWISE_API_KEY = "${VITE_FLOWISE_API_KEY}"
-
-[service]
-healthcheckPath = "/api/health"
-healthcheckTimeout = 60
 
 [[ports]]
 port = "8080"

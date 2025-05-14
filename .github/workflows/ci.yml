@@ -23,14 +23,19 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    - name: Lint
-      run: npm run lint --if-present
-    
     - name: Type check
       run: npm run typecheck --if-present
     
+    - name: Lint
+      run: npm run lint --if-present
+    
     - name: Build
       run: npm run build
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        VITE_FLOWISE_URL: ${{ secrets.VITE_FLOWISE_URL }}
+        VITE_FLOWISE_API_KEY: ${{ secrets.VITE_FLOWISE_API_KEY }}
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
@@ -64,3 +69,13 @@ jobs:
       run: railway up
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ Deployment successful! App is live at https://$(railway variables get -k VITE_PUBLIC_URL)"
+        else
+          echo "❌ Deployment failed. Check the logs for details."
+        fi

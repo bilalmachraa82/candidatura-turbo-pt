@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAI } from '@/context/AIContext';
 import { supabase } from '@/lib/supabase';
 import { generateText } from '@/api/generateText';
+import { GenerationSource } from '@/types/api';
 
 interface SectionEditorProps {
   title: string;
@@ -17,6 +18,7 @@ interface SectionEditorProps {
   charLimit: number;
   onTextChange?: (text: string) => void;
   onSave?: (text: string) => void;
+  onSourcesUpdate?: (sources: GenerationSource[]) => void;
 }
 
 const SectionEditor: React.FC<SectionEditorProps> = ({
@@ -27,11 +29,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   initialText = '',
   charLimit,
   onTextChange,
-  onSave
+  onSave,
+  onSourcesUpdate
 }) => {
   const [text, setText] = useState(initialText);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [sources, setSources] = useState<GenerationSource[]>([]);
   const { toast } = useToast();
   const { model: selectedModel } = useAI();
   const charsUsed = text.length;
@@ -42,6 +46,12 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       onTextChange(text);
     }
   }, [text, onTextChange]);
+
+  useEffect(() => {
+    if (onSourcesUpdate) {
+      onSourcesUpdate(sources);
+    }
+  }, [sources, onSourcesUpdate]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
@@ -60,8 +70,9 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     setIsGenerating(true);
     
     try {
-      const data = await generateText(projectId, sectionKey, charLimit, selectedModel);
-      setText(data.text);
+      const result = await generateText(projectId, sectionKey, charLimit, selectedModel);
+      setText(result.text);
+      setSources(result.sources);
       
       toast({
         title: "Texto gerado com sucesso",
@@ -143,6 +154,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
             disabled={isSaving || isOverLimit}
             className="border-pt-blue text-pt-blue hover:bg-pt-blue/10"
           >
+            <Save className="mr-2 h-4 w-4" />
             {isSaving ? "A guardar..." : "Guardar"}
           </Button>
         </div>
@@ -165,6 +177,24 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
           </span>
         )}
       </div>
+      
+      {sources.length > 0 && (
+        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Fontes Consultadas</h4>
+          <ul className="text-xs text-gray-600 space-y-1">
+            {sources.map((source, index) => (
+              <li key={source.id || index} className="flex items-center">
+                {source.type === 'pdf' ? (
+                  <FileText className="h-3 w-3 text-red-500 mr-1" />
+                ) : (
+                  <FileSpreadsheet className="h-3 w-3 text-green-600 mr-1" />
+                )}
+                <span>{source.name}: {source.reference}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

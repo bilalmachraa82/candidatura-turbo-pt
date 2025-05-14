@@ -1,25 +1,21 @@
 
-/**
- * Utility to check required environment variables and warn in development mode
- */
-export const checkEnvironmentVariables = () => {
+// Utility to check environment variables in dev mode
+export function checkEnvironmentVariables() {
   const requiredVars = [
-    'VITE_SUPABASE_URL', 
+    'VITE_SUPABASE_URL',
     'VITE_SUPABASE_ANON_KEY',
     'VITE_FLOWISE_URL',
-    'VITE_FLOWISE_API_KEY'
+    'VITE_FLOWISE_API_KEY',
   ];
   
-  const missingVars = requiredVars.filter(
-    varName => !import.meta.env[varName]
-  );
+  const missing = requiredVars.filter(key => !import.meta.env[key]);
   
-  if (missingVars.length > 0) {
+  if (missing.length > 0) {
     console.warn(
-      `⚠️ Missing environment variables: ${missingVars.join(', ')}.\n` +
-      `This may cause functionality issues. Make sure to add these to your .env.local file.`
+      `⚠️ Missing environment variables: ${missing.join(', ')}. 
+      Make sure to set these in .env.local or through your deployment platform.`
     );
+  } else {
+    console.log('✅ All required environment variables are set.');
   }
-  
-  return missingVars.length === 0;
-};
+}

@@ -3,198 +3,180 @@ import React, { useState } from 'react';
 import { UploadCloud, X, FileText, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
 import { indexDocument } from '@/api/indexDocuments';
+import { UploadedFile } from '@/types/api';
 
 interface UploadFormProps {
   projectId: string;
-  title?: string;
-  description?: string;
-  acceptedFileTypes?: string;
-  onUploadComplete?: (filename: string) => void;
-  onFileUploaded?: (file: { name: string; url: string; type: string }) => void;
+  onUploadComplete?: (fileName: string) => void;
+  onFileUploaded?: (file: UploadedFile) => void;
 }
 
 const UploadForm: React.FC<UploadFormProps> = ({ 
-  projectId, 
-  title = "Carregar Documentos", 
-  description = "Carregue documentos PDF ou Excel para análise e indexação.", 
-  acceptedFileTypes,
+  projectId,
   onUploadComplete,
   onFileUploaded
 }) => {
+  const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      
-      // Check file type
-      const acceptedTypes = acceptedFileTypes ? 
-        acceptedFileTypes.split(',') : 
-        ['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
-      
-      if (!acceptedTypes.includes(selectedFile.type)) {
-        toast({
-          variant: "destructive",
-          title: "Tipo de ficheiro não suportado",
-          description: "Por favor, carregue apenas ficheiros PDF ou Excel."
-        });
-        return;
-      }
-      
-      // Check file size (10MB max)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "Ficheiro muito grande",
-          description: "O tamanho máximo do ficheiro é 10MB."
-        });
-        return;
-      }
-      
-      setFile(selectedFile);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setFile(e.dataTransfer.files[0]);
     }
   };
-  
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+  };
+
+  const FileIcon = ({ type }: { type: string }) => {
+    if (type.includes('pdf')) {
+      return <FileText className="h-6 w-6 text-red-500" />;
+    } else if (type.includes('excel') || type.includes('spreadsheet') || type.includes('xlsx')) {
+      return <FileSpreadsheet className="h-6 w-6 text-green-600" />;
+    } else {
+      return <FileText className="h-6 w-6 text-gray-500" />;
+    }
+  };
+
   const handleUpload = async () => {
-    if (!file || !projectId) return;
-    
-    setIsUploading(true);
-    setProgress(0);
-    
-    // Simulated progress
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 95) {
-          clearInterval(progressInterval);
-          return 95;
-        }
-        return prev + 5;
+    if (!file || !projectId) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Por favor selecione um ficheiro para fazer upload.",
       });
-    }, 300);
+      return;
+    }
+
+    setIsUploading(true);
     
     try {
-      // Use our indexDocument API
       const result = await indexDocument(projectId, file);
       
-      setProgress(100);
+      if (!result.success) {
+        throw new Error(result.message);
+      }
       
       toast({
-        title: "Ficheiro carregado com sucesso",
-        description: `${file.name} foi indexado e está pronto para uso.`
+        title: "Upload concluído",
+        description: "Documento indexado com sucesso.",
       });
       
+      // Reset the file state after successful upload
+      setFile(null);
+      
+      // Call the completion handlers if provided
       if (onUploadComplete) {
         onUploadComplete(file.name);
       }
       
-      if (onFileUploaded) {
+      if (onFileUploaded && result.file) {
         onFileUploaded({
           name: file.name,
-          url: '', // Since the indexDocument doesn't return a URL, we'll just use an empty string
+          url: result.file.url || '',
           type: file.type
         });
       }
-      
-      // Reset form
-      setFile(null);
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error('Upload error:', error);
       toast({
         variant: "destructive",
         title: "Erro no upload",
-        description: error.message || "Não foi possível carregar o ficheiro."
+        description: error.message || "Ocorreu um erro ao fazer upload do ficheiro.",
       });
     } finally {
-      clearInterval(progressInterval);
       setIsUploading(false);
-      setProgress(0);
     }
-  };
-
-  const getFileIcon = () => {
-    if (!file) return null;
-    
-    if (file.type.includes('pdf')) {
-      return <FileText className="h-8 w-8 text-pt-red" />;
-    } else if (file.type.includes('spreadsheet') || file.type.includes('excel')) {
-      return <FileSpreadsheet className="h-8 w-8 text-pt-green" />;
-    }
-    
-    return <FileText className="h-8 w-8 text-gray-500" />;
-  };
-  
-  const resetForm = () => {
-    setFile(null);
-    setProgress(0);
   };
 
   return (
-    <div className="border rounded-lg p-4 bg-white">
-      <h3 className="text-lg font-medium text-pt-blue mb-2">{title}</h3>
-      <p className="text-sm text-gray-600 mb-4">
-        {description}
-      </p>
+    <div className="mb-6 border-2 border-dashed border-gray-300 rounded-lg p-6">
+      <div className="text-center mb-4">
+        <h3 className="text-base font-semibold text-gray-700">
+          Upload de Documentos
+        </h3>
+        <p className="text-sm text-gray-600">
+          Adicione PDF ou Excel para servir como fonte de conhecimento na geração de texto
+        </p>
+      </div>
       
       {!file ? (
-        <div 
-          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-pt-blue transition-colors cursor-pointer"
-          onClick={() => document.getElementById('fileInput')?.click()}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`cursor-pointer border-2 border-dashed rounded-md py-8 px-4 text-center ${
+            isDragging ? 'bg-blue-50 border-blue-500' : 'border-gray-300 hover:border-gray-400'
+          }`}
         >
+          <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
+          <p className="mt-2 text-sm text-gray-500">Arraste ficheiros para aqui ou clique para selecionar</p>
+          <p className="mt-1 text-xs text-gray-400">Suporte para PDF, Excel e Word (máx. 10MB)</p>
           <input
-            id="fileInput"
             type="file"
+            id="fileInput"
             className="hidden"
-            accept={acceptedFileTypes || ".pdf,.xlsx,.xls"}
+            accept=".pdf,.xlsx,.xls,.doc,.docx,.txt"
             onChange={handleFileChange}
           />
-          <UploadCloud className="h-12 w-12 mx-auto text-gray-400" />
-          <p className="mt-2 text-sm font-medium text-gray-600">
-            Clique ou arraste ficheiros para esta área
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
-            PDF ou Excel até 10MB
-          </p>
+          <Button
+            onClick={() => document.getElementById('fileInput')?.click()}
+            variant="outline"
+            className="mt-4"
+          >
+            Selecionar Ficheiro
+          </Button>
         </div>
       ) : (
-        <div className="border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              {getFileIcon()}
-              <div>
-                <p className="font-medium text-gray-800 text-sm">{file.name}</p>
-                <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+        <div className="border border-gray-200 rounded-md p-3 mt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FileIcon type={file.type} />
+              <div className="text-sm">
+                <p className="font-medium text-gray-900">{file.name}</p>
+                <p className="text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={resetForm}
-              disabled={isUploading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {isUploading && (
-            <div className="mt-2">
-              <Progress value={progress} className="h-1" />
-              <p className="mt-1 text-xs text-gray-500 text-right">{progress}%</p>
+            <div className="flex space-x-2">
+              <Button
+                onClick={handleRemoveFile}
+                variant="ghost"
+                size="sm"
+                className="text-gray-500"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          )}
-          
-          <div className="mt-3 flex justify-end">
-            <Button 
-              onClick={handleUpload} 
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              onClick={handleUpload}
               disabled={isUploading}
-              className="bg-pt-blue hover:bg-pt-blue/90"
-              size="sm"
+              className="bg-pt-green hover:bg-pt-green/90"
             >
-              {isUploading ? "A carregar..." : "Carregar e Indexar"}
+              {isUploading ? "A processar..." : "Fazer Upload"}
             </Button>
           </div>
         </div>

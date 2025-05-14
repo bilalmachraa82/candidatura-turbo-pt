@@ -1,40 +1,23 @@
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useState, useContext, ReactNode } from 'react';
+import { AIModel } from '@/types/ai';
 
-type AIModel = 'gpt-4o' | 'claude-3-opus' | 'gemini-pro';
-
-interface AIContextProps {
+type AIContextType = {
   model: AIModel;
   setModel: (model: AIModel) => void;
-  charsGenerated: number;
-  addCharsGenerated: (count: number) => void;
-  resetCharsGenerated: () => void;
-}
-
-const AIContext = createContext<AIContextProps | undefined>(undefined);
-
-export const AIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [model, setModel] = useState<AIModel>('gpt-4o');
-  const [charsGenerated, setCharsGenerated] = useState(0);
-
-  const addCharsGenerated = (count: number) => {
-    setCharsGenerated(prev => prev + count);
-  };
-
-  const resetCharsGenerated = () => {
-    setCharsGenerated(0);
-  };
-
-  const value = {
-    model,
-    setModel,
-    charsGenerated,
-    addCharsGenerated,
-    resetCharsGenerated
-  };
-
-  return <AIContext.Provider value={value}>{children}</AIContext.Provider>;
 };
+
+const AIContext = createContext<AIContextType | undefined>(undefined);
+
+export function AIProvider({ children }: { children: ReactNode }) {
+  const [model, setModel] = useState<AIModel>('gpt-4o');
+
+  return (
+    <AIContext.Provider value={{ model, setModel }}>
+      {children}
+    </AIContext.Provider>
+  );
+}
 
 export const useAI = () => {
   const context = useContext(AIContext);

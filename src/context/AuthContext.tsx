@@ -1,24 +1,25 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { AuthSession, User } from '@supabase/supabase-js';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
-interface AuthContextProps {
+type AuthContextType = {
   user: User | null;
-  session: AuthSession | null;
+  session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-}
+  resetPassword: (email: string) => Promise<{ error: any }>;
+};
 
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<AuthSession | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -26,114 +27,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (error) {
-        console.error('Error getting session:', error);
-        setSession(null);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      setLoading(false);
     };
-
+    
     getInitialSession();
 
-    // Set up listener for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      if (event === 'SIGNED_IN') {
-        navigate('/');
-      } else if (event === 'SIGNED_OUT') {
-        navigate('/login');
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
-    });
+    );
 
-    // Cleanup
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    return () => subscription?.unsubscribe();
+  }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string) => {
     try {
-      setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signUp({ email, password });
       
-      if (error) throw error;
+      if (!error) {
+        toast({
+          title: "Conta criada com sucesso",
+          description: "Por favor verifique o seu email para confirmar o registo.",
+        });
+      }
       
-      toast({
-        title: "Login bem-sucedido",
-        description: "Bem-vindo de volta!",
-      });
-      
-      navigate('/');
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Falha no login",
-        description: error.message || "Ocorreu um erro ao fazer login.",
-      });
-      console.error('Error signing in:', error);
-    } finally {
-      setLoading(false);
+      return { error };
+    } catch (error) {
+      console.error('Error signing up:', error);
+      return { error };
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      setLoading(true);
-      const { error: signUpError } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          data: {
-            full_name: name,
-          }
-        }
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       
-      if (signUpError) throw signUpError;
+      if (!error) {
+        toast({
+          title: "Login bem sucedido",
+          description: "Bem-vindo de volta!",
+        });
+        navigate('/');
+      }
       
-      toast({
-        title: "Conta criada com sucesso",
-        description: "Por favor, verifique seu email para confirmar o registro.",
-      });
-      
-      navigate('/login');
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Falha no registro",
-        description: error.message || "Ocorreu um erro ao criar a conta.",
-      });
-      console.error('Error signing up:', error);
-    } finally {
-      setLoading(false);
+      return { error };
+    } catch (error) {
+      console.error('Error signing in:', error);
+      return { error };
     }
   };
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
+      await supabase.auth.signOut();
+      navigate('/login');
       toast({
-        title: "Sessão encerrada",
-        description: "Você saiu com sucesso.",
+        title: "Sessão terminada",
+        description: "A sua sessão foi terminada com sucesso.",
       });
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error signing out:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao sair",
-        description: error.message || "Ocorreu um erro ao encerrar a sessão.",
+        title: "Erro ao terminar sessão",
+        description: "Ocorreu um erro ao terminar a sua sessão.",
       });
-      console.error('Error signing out:', error);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (!error) {
+        toast({
+          title: "Email enviado",
+          description: "Verifique o seu email para redefinir a sua password.",
+        });
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      return { error };
     }
   };
 
@@ -141,13 +126,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
-    signIn,
     signUp,
+    signIn,
     signOut,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
