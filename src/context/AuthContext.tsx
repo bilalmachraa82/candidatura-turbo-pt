@@ -23,61 +23,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  // Estado para evitar tentativas excessivas em caso de erro
-  const [authAttemptInProgress, setAuthAttemptInProgress] = useState(false);
 
   useEffect(() => {
-    // Setup auth state listener FIRST (to avoid missing auth events)
+    // Set up the auth state listener first to avoid missing auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log("Auth state changed:", event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        
-        // Eventos importantes podem ser registrados aqui
-        if (event === 'SIGNED_OUT') {
-          console.log("Usuário desconectado");
-        } else if (event === 'SIGNED_IN') {
-          console.log("Usuário conectado:", currentSession?.user?.email);
-        } else if (event === 'TOKEN_REFRESHED') {
-          console.log("Token atualizado");
-        }
-        
         setLoading(false);
       }
     );
-    
-    // THEN check for initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-      } catch (error) {
-        console.error("Erro ao buscar sessão inicial:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    getInitialSession();
 
-    return () => subscription?.unsubscribe();
+    // Check for initial session
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log("Initial session check:", initialSession ? "Found session" : "No session");
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string) => {
     try {
-      if (authAttemptInProgress) {
-        return { error: new Error("Processo de autenticação já em andamento") };
-      }
-      
-      setAuthAttemptInProgress(true);
-      
       const { error } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
-          // Disable email confirmation requirement for development
           emailRedirectTo: `${window.location.origin}/login`,
         }
       });
@@ -87,61 +63,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           title: "Conta criada com sucesso",
           description: "Pode utilizar a sua conta agora mesmo para entrar no sistema.",
         });
-        
-        // Automatically sign in after signup
-        setTimeout(() => {
-          signIn(email, password);
-        }, 1000);
       }
       
       return { error };
     } catch (error) {
       console.error('Erro ao registar:', error);
       return { error: error as Error };
-    } finally {
-      setAuthAttemptInProgress(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      if (authAttemptInProgress) {
-        return { error: new Error("Processo de autenticação já em andamento") };
-      }
-      
-      setAuthAttemptInProgress(true);
-      
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
-        // Handle the email not confirmed error specifically
-        const isAuthError = (error: Error | AuthError): error is AuthError => {
-          return 'status' in error;
-        };
+        // Type guard for AuthError
+        const isAuthError = (err: Error | AuthError): err is AuthError => 
+          'status' in err;
         
         if (isAuthError(error) && error.message?.includes('Email not confirmed')) {
-          console.log("Email not confirmed, attempting to sign up again to bypass...");
-          
-          // Try to re-create the account which will auto-login the user without email confirmation
-          // This is a workaround for development purposes
-          const { error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/login`,
-            }
-          });
-          
-          if (!signUpError) {
-            // Success with the workaround
-            toast({
-              title: "Login bem sucedido",
-              description: "Bem-vindo ao sistema!",
-            });
-            navigate('/');
-            return { error: null, emailNotConfirmed: true };
-          }
-          
+          console.log("Email not confirmed error detected");
           return { error, emailNotConfirmed: true };
         }
         
@@ -152,14 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: "Login bem sucedido",
         description: "Bem-vindo de volta!",
       });
-      navigate('/');
       
-      return { error };
+      return { error: null };
     } catch (error) {
       console.error('Erro ao fazer login:', error);
       return { error: error as Error };
-    } finally {
-      setAuthAttemptInProgress(false);
     }
   };
 
@@ -183,12 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = async (email: string) => {
     try {
-      if (authAttemptInProgress) {
-        return { error: new Error("Processo já em andamento") };
-      }
-      
-      setAuthAttemptInProgress(true);
-      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -204,8 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Erro ao redefinir password:', error);
       return { error: error as Error };
-    } finally {
-      setAuthAttemptInProgress(false);
     }
   };
 

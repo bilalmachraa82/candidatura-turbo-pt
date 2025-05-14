@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { AIProvider } from "@/context/AIContext";
 import { checkEnvironmentVariables } from "@/utils/envDebugger";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 // Debug environment variables in development
 if (import.meta.env.DEV) {
@@ -28,7 +30,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div>Carregando...</div>;
+    return <div className="flex h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin h-10 w-10 border-4 border-pt-green border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p className="text-pt-blue font-semibold">A carregar...</p>
+      </div>
+    </div>;
   }
   
   if (!user) {
