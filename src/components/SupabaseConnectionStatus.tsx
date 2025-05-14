@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
 interface SupabaseConnectionStatusProps {
   showToast?: boolean;
@@ -25,14 +25,14 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
       try {
         setIsChecking(true);
         
-        // Tenta fazer uma operação simples no Supabase para verificar a conexão
+        // Try to make a simple operation on Supabase to verify the connection
         const { data, error } = await supabase.from('projects').select('count', { count: 'exact', head: true });
         
         const connected = !error;
         setIsConnected(connected);
         
         if (error) {
-          console.error('Erro Supabase:', error);
+          console.error('Supabase Error:', error);
           // Check if it's a service unavailable error
           setServiceUnavailable(error.message?.includes('503') || error.code === '503');
         }
@@ -41,7 +41,7 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
           onStatusChange(connected);
         }
         
-        // Mostrar toast apenas uma vez ao alterar o estado da conexão
+        // Show toast only once when connection status changes
         if (showToast && !toastShownRef.current) {
           toastShownRef.current = true;
           
@@ -63,7 +63,7 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
           }
         }
       } catch (err) {
-        console.error('Erro ao verificar ligação Supabase:', err);
+        console.error('Error checking Supabase connection:', err);
         setIsConnected(false);
         if (onStatusChange) {
           onStatusChange(false);
@@ -73,12 +73,12 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
       }
     };
 
-    // Verificação inicial
+    // Initial check
     checkConnection();
     
-    // Configurar verificação periódica com intervalo maior (a cada 30 segundos)
+    // Set up periodic check with larger interval (every 30 seconds)
     checkingIntervalRef.current = setInterval(() => {
-      // Resetar o estado do toast para permitir nova notificação apenas se o estado mudar
+      // Reset toast state to allow new notification only if state changes
       if (isConnected === false) {
         toastShownRef.current = false;
         checkConnection();
@@ -95,7 +95,7 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
   if (isChecking) {
     return (
       <div className="flex items-center text-sm text-gray-500">
-        <span className="animate-pulse">Verificando ligação ao Supabase...</span>
+        <span className="animate-pulse">A verificar ligação ao Supabase...</span>
       </div>
     );
   }
@@ -114,7 +114,7 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
   }
 
   return (
-    <div className={`flex items-center text-sm ${isConnected ? 'text-pt-green' : 'text-pt-red'}`}>
+    <div className={`flex items-center text-sm ${isConnected ? 'text-green-600' : 'text-red-500'}`}>
       {isConnected ? (
         <>
           <CheckCircle className="mr-1 h-4 w-4" />

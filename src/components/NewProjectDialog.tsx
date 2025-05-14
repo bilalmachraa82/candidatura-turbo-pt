@@ -11,13 +11,15 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
 
 interface NewProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateProject: (projectData: { name: string }) => void;
+  onCreateProject?: (projectData: { name: string; description?: string; type?: string; id: string }) => void;
 }
 
 const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ 
@@ -26,11 +28,13 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
   onCreateProject 
 }) => {
   const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectType, setProjectType] = useState('Standard');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!projectName.trim()) {
@@ -44,25 +48,99 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
 
     setIsSubmitting(true);
     
-    // Simular criação do projeto (substituir com integração Supabase no futuro)
-    setTimeout(() => {
-      const newProjectId = Date.now().toString();
-      
-      onCreateProject({ name: projectName });
-      
+    try {
+      // Create the project in Supabase
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          title: projectName,
+          description: projectDescription,
+          type: projectType,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
       toast({
         title: "Sucesso!",
         description: "Projeto criado com sucesso",
       });
       
+      // Create default sections for the project
+      await createDefaultSections(data.id);
+      
+      // Notify parent component
+      if (onCreateProject) {
+        onCreateProject({
+          name: projectName,
+          description: projectDescription,
+          type: projectType,
+          id: data.id
+        });
+      }
+      
       // Redirecionar para a página do projeto
-      navigate(`/projetos/${newProjectId}`);
+      navigate(`/projetos/${data.id}`);
       
       // Limpar e fechar modal
-      setProjectName('');
+      resetForm();
       onOpenChange(false);
+    } catch (error: any) {
+      console.error("Error creating project:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao criar projeto",
+        description: error.message || "Ocorreu um erro ao criar o projeto. Tente novamente."
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 800);
+    }
+  };
+
+  const createDefaultSections = async (projectId: string) => {
+    try {
+      const defaultSections = [
+        {
+          project_id: projectId,
+          key: 'analise_mercado',
+          title: 'Análise de Mercado',
+          description: 'Avaliação do mercado-alvo, tendências e oportunidades',
+          char_limit: 2500
+        },
+        {
+          project_id: projectId,
+          key: 'proposta_valor',
+          title: 'Proposta de Valor',
+          description: 'Definição do valor único oferecido ao mercado',
+          char_limit: 1500
+        },
+        {
+          project_id: projectId,
+          key: 'plano_financeiro',
+          title: 'Plano Financeiro',
+          description: 'Projeções financeiras e análise de viabilidade',
+          char_limit: 3000
+        }
+      ];
+
+      const { error } = await supabase
+        .from('sections')
+        .insert(defaultSections);
+
+      if (error) {
+        console.error('Error creating default sections:', error);
+      }
+    } catch (err) {
+      console.error('Error creating default sections:', err);
+    }
+  };
+
+  const resetForm = () => {
+    setProjectName('');
+    setProjectDescription('');
+    setProjectType('Standard');
   };
 
   return (
@@ -87,6 +165,33 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
                 className="col-span-3"
                 placeholder="Nome do projeto"
                 autoFocus
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Descrição
+              </Label>
+              <Textarea
+                id="description"
+                value={projectDescription}
+                onChange={(e) => setProjectDescription(e.target.value)}
+                className="col-span-3"
+                placeholder="Descrição breve do projeto"
+                rows={3}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">
+                Tipo
+              </Label>
+              <Input
+                id="type"
+                value={projectType}
+                onChange={(e) => setProjectType(e.target.value)}
+                className="col-span-3"
+                placeholder="Tipo de projeto"
               />
             </div>
           </div>

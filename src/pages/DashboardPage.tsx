@@ -9,11 +9,12 @@ import Layout from '@/components/Layout';
 import NewProjectDialog from '@/components/NewProjectDialog';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
+import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
 
 interface Project {
   id: string;
-  name: string;
+  title: string;
   description: string | null;
   created_at: string;
   status: string;
@@ -28,7 +29,11 @@ const DashboardPage: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchProjects();
+    if (user) {
+      fetchProjects();
+    } else {
+      setIsLoading(false);
+    }
   }, [user]);
 
   const fetchProjects = async () => {
@@ -39,13 +44,12 @@ const DashboardPage: React.FC = () => {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
       setProjects(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching projects:', error);
       toast({
         variant: "destructive",
@@ -57,81 +61,18 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleCreateProject = async (projectData: { name: string; description: string; type: string }) => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .insert({
-          name: projectData.name,
-          description: projectData.description,
-          type: projectData.type,
-          user_id: user.id,
-          status: 'draft'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "Projeto criado",
-        description: "O seu novo projeto foi criado com sucesso."
-      });
-
-      // Add the new project to the list
-      setProjects((prev) => [data, ...prev]);
-      
-      // Create default sections for the new project
-      await createDefaultSections(data.id);
-      
-      return data.id;
-    } catch (error) {
-      console.error('Error creating project:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível criar o projeto."
-      });
-      return null;
-    }
-  };
-
-  const createDefaultSections = async (projectId: string) => {
-    try {
-      const defaultSections = [
-        {
-          project_id: projectId,
-          key: 'analise_mercado',
-          title: 'Análise de Mercado',
-          description: 'Avaliação do mercado-alvo, tendências e oportunidades',
-          char_limit: 2500
-        },
-        {
-          project_id: projectId,
-          key: 'proposta_valor',
-          title: 'Proposta de Valor',
-          description: 'Definição do valor único oferecido ao mercado',
-          char_limit: 1500
-        },
-        {
-          project_id: projectId,
-          key: 'plano_financeiro',
-          title: 'Plano Financeiro',
-          description: 'Projeções financeiras e análise de viabilidade',
-          char_limit: 3000
-        }
-      ];
-
-      const { error } = await supabase
-        .from('sections')
-        .insert(defaultSections);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error creating default sections:', error);
-    }
+  const handleCreateProject = async (projectData: { name: string; description?: string; type?: string; id: string }) => {
+    // Add the new project to the list to avoid another fetch
+    const newProject: Project = {
+      id: projectData.id,
+      title: projectData.name,
+      description: projectData.description || null,
+      status: 'draft',
+      type: projectData.type || 'Standard',
+      created_at: new Date().toISOString()
+    };
+    
+    setProjects((prev) => [newProject, ...prev]);
   };
 
   const getStatusBadge = (status: string) => {
@@ -158,6 +99,9 @@ const DashboardPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-pt-blue">Meus Projetos</h1>
             <p className="text-gray-600 mt-2">Gerencie as suas candidaturas PT2030</p>
+            <div className="mt-2">
+              <SupabaseConnectionStatus showToast={true} />
+            </div>
           </div>
           <Button 
             onClick={() => setIsDialogOpen(true)}
@@ -180,7 +124,7 @@ const DashboardPage: React.FC = () => {
               <Card key={project.id} className="transition-shadow hover:shadow-md">
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-xl text-pt-blue">{project.name}</CardTitle>
+                    <CardTitle className="text-xl text-pt-blue">{project.title}</CardTitle>
                     {getStatusBadge(project.status)}
                   </div>
                   <CardDescription className="line-clamp-2">

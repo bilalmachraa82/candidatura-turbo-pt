@@ -1,13 +1,26 @@
+
 import React, { useState } from 'react';
-import { UploadFormProps } from '@/types/components';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FileInput } from '@/components/ui/file-input';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { indexDocument } from '@/api/indexDocuments';
 
-export default function UploadForm({ title, description, projectId, acceptedFileTypes, onFileUploaded }: UploadFormProps) {
+export interface UploadFormProps {
+  title: string;
+  description: string;
+  projectId: string;
+  acceptedFileTypes?: string;
+  onFileUploaded: (file: { name: string; url: string; type: string }) => void;
+}
+
+export default function UploadForm({
+  title,
+  description,
+  projectId,
+  acceptedFileTypes,
+  onFileUploaded
+}: UploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
@@ -44,7 +57,11 @@ export default function UploadForm({ title, description, projectId, acceptedFile
         });
 
         if (result.file) {
-          onFileUploaded({ name: result.file.name, url: result.file.url, type: result.file.type });
+          onFileUploaded({
+            name: result.file.name,
+            url: result.file.url,
+            type: result.file.type
+          });
         }
         
         // Reset the selected file
