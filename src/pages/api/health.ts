@@ -1,19 +1,10 @@
 
-type Request = {
-  method?: string;
-};
-
-type Response = {
-  status: (code: number) => Response;
-  json: (data: any) => void;
-};
-
-export default async function handler(req: Request, res: Response) {
-  // Check if the API is responsive
-  res.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0',
+// API endpoint for health check used by Railway
+export default function handler(req: Request) {
+  return new Response(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 }

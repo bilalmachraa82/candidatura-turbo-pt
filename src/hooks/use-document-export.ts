@@ -1,75 +1,45 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { exportDocument } from '@/api/exportDocument';
 
-interface UseDocumentExportProps {
-  projectId: string;
-}
-
-interface ExportOptions {
-  format: 'pdf' | 'docx';
-  language?: 'pt' | 'en';
-}
-
-export function useDocumentExport({ projectId }: UseDocumentExportProps) {
+export function useDocumentExport() {
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
-  const exportDocument = async ({ format, language = 'pt' }: ExportOptions) => {
-    if (!projectId) {
-      toast({
-        variant: "destructive",
-        title: "Erro de exportação",
-        description: "ID do projeto em falta."
-      });
-      return null;
-    }
-
+  const exportProjectDocument = async (
+    projectId: string,
+    format: 'pdf' | 'docx' = 'pdf',
+    language: 'pt' | 'en' = 'pt'
+  ) => {
     setIsExporting(true);
-
+    
     try {
-      const response = await fetch(`/api/export?projectId=${projectId}&format=${format}&language=${language}`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro na exportação do documento');
-      }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || 'Erro na exportação do documento');
-      }
-
-      // Trigger download
-      const link = document.createElement('a');
-      link.href = data.url;
-      link.download = data.fileName || `PT2030_Export_${new Date().toISOString().slice(0, 10)}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
+      await exportDocument(projectId, format, language);
+      
       toast({
-        title: "Documento exportado com sucesso",
-        description: `O ficheiro foi exportado em formato ${format.toUpperCase()}.`
+        title: "Exportação concluída",
+        description: `O documento foi exportado com sucesso em formato ${format.toUpperCase()}.`,
       });
-
-      return data;
+      
+      return true;
     } catch (error: any) {
-      console.error("Export error:", error);
+      console.error('Error in document export:', error);
+      
       toast({
         variant: "destructive",
         title: "Erro na exportação",
-        description: error.message || "Não foi possível exportar o documento."
+        description: error.message || "Não foi possível exportar o documento.",
       });
-      return null;
+      
+      return false;
     } finally {
       setIsExporting(false);
     }
   };
 
   return {
-    exportDocument,
+    exportProjectDocument,
     isExporting
   };
 }

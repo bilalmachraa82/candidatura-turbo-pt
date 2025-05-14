@@ -27,3 +27,7 @@ healthcheckTimeout = 60
 port = "8080"
 internal = false
 protocol = "HTTP"
+
+[[statics]]
+source = "/dist"
+destination = "/"
