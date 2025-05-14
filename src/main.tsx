@@ -1,10 +1,23 @@
 
-import { createRoot } from 'react-dom/client'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { checkEnvironmentVariables } from './utils/envDebugger.ts'
 
-// Mount the app to the root element
-const rootElement = document.getElementById('root');
-if (!rootElement) throw new Error('Root element not found');
+// Verificar variáveis de ambiente na inicialização
+if (import.meta.env.DEV) {
+  const envStatus = checkEnvironmentVariables();
+  
+  if (envStatus.supabaseConfigured) {
+    console.info('🔑 Supabase configurado com sucesso!');
+  } else {
+    console.error('⚠️ Configuração do Supabase incompleta ou inválida!');
+  }
+}
 
-createRoot(rootElement).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
