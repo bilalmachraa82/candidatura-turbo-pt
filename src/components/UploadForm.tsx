@@ -7,10 +7,21 @@ import { Progress } from '@/components/ui/progress';
 
 interface UploadFormProps {
   projectId: string;
+  title?: string;
+  description?: string;
+  acceptedFileTypes?: string;
   onUploadComplete?: (filename: string) => void;
+  onFileUploaded?: (file: { name: string; url: string; type: string }) => void;
 }
 
-const UploadForm: React.FC<UploadFormProps> = ({ projectId, onUploadComplete }) => {
+const UploadForm: React.FC<UploadFormProps> = ({ 
+  projectId, 
+  title = "Carregar Documentos", 
+  description = "Carregue documentos PDF ou Excel para análise e indexação.", 
+  acceptedFileTypes,
+  onUploadComplete,
+  onFileUploaded
+}) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -21,7 +32,10 @@ const UploadForm: React.FC<UploadFormProps> = ({ projectId, onUploadComplete }) 
       const selectedFile = e.target.files[0];
       
       // Check file type
-      const acceptedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+      const acceptedTypes = acceptedFileTypes ? 
+        acceptedFileTypes.split(',') : 
+        ['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+      
       if (!acceptedTypes.includes(selectedFile.type)) {
         toast({
           variant: "destructive",
@@ -90,6 +104,14 @@ const UploadForm: React.FC<UploadFormProps> = ({ projectId, onUploadComplete }) 
         onUploadComplete(file.name);
       }
       
+      if (onFileUploaded) {
+        onFileUploaded({
+          name: file.name,
+          url: data.url || '',
+          type: file.type
+        });
+      }
+      
       // Reset form
       setFile(null);
     } catch (error: any) {
@@ -125,9 +147,9 @@ const UploadForm: React.FC<UploadFormProps> = ({ projectId, onUploadComplete }) 
 
   return (
     <div className="border rounded-lg p-4 bg-white">
-      <h3 className="text-lg font-medium text-pt-blue mb-2">Carregar Documentos</h3>
+      <h3 className="text-lg font-medium text-pt-blue mb-2">{title}</h3>
       <p className="text-sm text-gray-600 mb-4">
-        Carregue documentos PDF ou Excel para análise e indexação.
+        {description}
       </p>
       
       {!file ? (
@@ -139,7 +161,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ projectId, onUploadComplete }) 
             id="fileInput"
             type="file"
             className="hidden"
-            accept=".pdf,.xlsx,.xls"
+            accept={acceptedFileTypes || ".pdf,.xlsx,.xls"}
             onChange={handleFileChange}
           />
           <UploadCloud className="h-12 w-12 mx-auto text-gray-400" />
