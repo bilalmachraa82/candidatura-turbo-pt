@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { UploadCloud, X, FileText, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { indexDocument } from '@/api/indexDocuments';
 
 interface UploadFormProps {
   projectId: string;
@@ -77,21 +77,8 @@ const UploadForm: React.FC<UploadFormProps> = ({
     }, 300);
     
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('projectId', projectId);
-      
-      const response = await fetch('/api/index', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro no upload do ficheiro');
-      }
-      
-      const data = await response.json();
+      // Use our indexDocument API
+      const result = await indexDocument(projectId, file);
       
       setProgress(100);
       
@@ -104,10 +91,10 @@ const UploadForm: React.FC<UploadFormProps> = ({
         onUploadComplete(file.name);
       }
       
-      if (onFileUploaded) {
+      if (onFileUploaded && result.file) {
         onFileUploaded({
           name: file.name,
-          url: data.url || '',
+          url: result.file.url || '',
           type: file.type
         });
       }

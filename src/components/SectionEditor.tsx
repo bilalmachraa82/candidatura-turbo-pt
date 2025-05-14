@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAIContext } from '@/context/AIContext';
 import { supabase } from '@/lib/supabase';
+import { generateText } from '@/api/generateText';
 
 interface SectionEditorProps {
   title: string;
@@ -59,25 +60,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     setIsGenerating(true);
     
     try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          projectId,
-          sectionKey,
-          charLimit,
-          model: selectedModel
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro na geração de texto');
-      }
-      
-      const data = await response.json();
+      const data = await generateText(projectId, sectionKey, charLimit, selectedModel);
       setText(data.text);
       
       toast({

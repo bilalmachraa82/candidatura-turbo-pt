@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
@@ -9,6 +8,8 @@ import Layout from '@/components/Layout';
 import UploadForm from '@/components/UploadForm';
 import SectionEditor from '@/components/SectionEditor';
 import SidebarPanel from '@/components/SidebarPanel';
+import { supabase } from '@/lib/supabase';
+import { exportDocument } from '@/api/exportDocument';
 
 interface UploadedFile {
   id: string;
@@ -84,11 +85,12 @@ const ProjectPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<{name: string, status: string} | null>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [sections, setSections] = useState<ProjectSection[]>(mockSections);
-  const [sources] = useState<Source[]>(mockSources);
+  const [sections, setSections] = useState<ProjectSection[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
   const [charsUsed, setCharsUsed] = useState(0);
   const [totalCharLimit, setTotalCharLimit] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   // Calculate total character usage across all sections
@@ -102,21 +104,124 @@ const ProjectPage: React.FC = () => {
 
   // Fetch project data
   useEffect(() => {
-    // Simulate API call to fetch project
     const fetchProject = async () => {
-      // Mock data
-      setProject({
-        name: 'Hotel Rural Sustentável',
-        status: 'draft'
-      });
-      
-      // This would be replaced with actual API calls in a real implementation
+      setIsLoading(true);
+      try {
+        if (!projectId) return;
+
+        // Fetch project details
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single();
+
+        if (projectError) throw projectError;
+        
+        setProject({
+          name: projectData.name,
+          status: projectData.status || 'draft'
+        });
+
+        // Fetch project sections
+        const { data: sectionsData, error: sectionsError } = await supabase
+          .from('sections')
+          .select('*')
+          .eq('project_id', projectId);
+
+        if (sectionsError) throw sectionsError;
+
+        if (sectionsData && sectionsData.length > 0) {
+          setSections(sectionsData.map(s => ({
+            id: s.id,
+            projectId: s.project_id,
+            key: s.key,
+            title: s.title,
+            description: s.description || '',
+            content: s.content || '',
+            charLimit: s.char_limit || 2000
+          })));
+        } else {
+          // If no sections found, use default ones
+          setSections([
+            {
+              id: '1',
+              projectId: projectId,
+              key: 'analise_mercado',
+              title: 'Análise de Mercado',
+              description: 'Avaliação do mercado-alvo, tendências e oportunidades',
+              content: '',
+              charLimit: 2500
+            },
+            {
+              id: '2',
+              projectId: projectId,
+              key: 'proposta_valor',
+              title: 'Proposta de Valor',
+              description: 'Definição do valor único oferecido ao mercado',
+              content: '',
+              charLimit: 1500
+            },
+            {
+              id: '3',
+              projectId: projectId,
+              key: 'plano_financeiro',
+              title: 'Plano Financeiro',
+              description: 'Projeções financeiras e análise de viabilidade',
+              content: '',
+              charLimit: 3000
+            }
+          ]);
+        }
+
+        // Fetch uploaded files
+        const { data: filesData, error: filesError } = await supabase
+          .from('indexed_files')
+          .select('*')
+          .eq('project_id', projectId);
+
+        if (!filesError && filesData) {
+          setFiles(filesData.map(f => ({
+            id: f.id,
+            name: f.file_name,
+            url: f.file_url,
+            type: f.file_type,
+            uploadDate: f.created_at
+          })));
+        }
+
+        // Fetch sources (for now we'll use mock data)
+        setSources([
+          {
+            id: '1',
+            name: 'Estudo de Viabilidade.xlsx',
+            reference: 'Excel: Sheet "Mercado" - B10:D25',
+            type: 'excel'
+          },
+          {
+            id: '2',
+            name: 'Memória Descritiva.pdf',
+            reference: 'PDF: Página 12, Parágrafo 3',
+            type: 'pdf'
+          }
+        ]);
+
+      } catch (error) {
+        console.error("Error fetching project:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar o projeto"
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
     
     if (projectId) {
       fetchProject();
     }
-  }, [projectId]);
+  }, [projectId, toast]);
 
   const handleFileUploaded = (file: {name: string, url: string, type: string}) => {
     const newFile: UploadedFile = {
@@ -141,11 +246,12 @@ const ProjectPage: React.FC = () => {
   };
 
   const handleExport = async (format: 'pdf' | 'docx') => {
+    if (!projectId) return;
+    
     setIsExporting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const result = await exportDocument(projectId, format);
       
       toast({
         title: "Exportação concluída",
@@ -153,23 +259,34 @@ const ProjectPage: React.FC = () => {
       });
       
       // In a real implementation, this would trigger a download
-    } catch (error) {
+      // window.open(result.url, '_blank');
+    } catch (error: any) {
       console.error("Export error:", error);
       toast({
         variant: "destructive",
         title: "Erro na exportação",
-        description: "Não foi possível exportar o dossiê. Por favor tente novamente."
+        description: error.message || "Não foi possível exportar o dossiê. Por favor tente novamente."
       });
     } finally {
       setIsExporting(false);
     }
   };
 
-  if (!project) {
+  if (isLoading) {
     return (
       <Layout>
         <div className="pt-container pt-section">
           <p>Carregando projeto...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!project) {
+    return (
+      <Layout>
+        <div className="pt-container pt-section">
+          <p>Projeto não encontrado</p>
         </div>
       </Layout>
     );
