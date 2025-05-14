@@ -44,7 +44,28 @@ let supabase;
 
 if (supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)) {
   try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      global: {
+        fetch: (...args) => {
+          // Custom fetch handler with better timeout
+          const fetchWithTimeout = (url: string, options: RequestInit = {}, timeoutMs = 15000) => {
+            return Promise.race([
+              fetch(url, { ...options }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Supabase request timeout')), timeoutMs)
+              )
+            ]) as Promise<Response>;
+          };
+          
+          // @ts-ignore - Type mismatch is acceptable here
+          return fetchWithTimeout(args[0], args[1]);
+        }
+      }
+    });
     console.info('✅ Cliente Supabase inicializado com sucesso.');
   } catch (error) {
     console.error('❌ Erro ao inicializar o cliente Supabase:', error);
@@ -55,26 +76,35 @@ if (supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)) {
   supabase = createMockSupabaseClient();
 }
 
-// Função para criar um cliente simulado quando a configuração está incorreta
+// Função para criar um cliente simulado quando a configuração está incorreta ou o serviço está indisponível
 function createMockSupabaseClient() {
   return {
     auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: new Error('Supabase não configurado') }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: new Error('Supabase não configurado ou temporariamente indisponível') }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      signUp: () => Promise.resolve({ error: new Error('Supabase não configurado') }),
-      signInWithPassword: () => Promise.resolve({ error: new Error('Supabase não configurado') }),
+      signUp: () => Promise.resolve({ error: new Error('Supabase não configurado ou temporariamente indisponível') }),
+      signInWithPassword: () => Promise.resolve({ error: new Error('Supabase não configurado ou temporariamente indisponível') }),
       signOut: () => Promise.resolve({ error: null }),
-      resetPasswordForEmail: () => Promise.resolve({ error: new Error('Supabase não configurado') })
+      resetPasswordForEmail: () => Promise.resolve({ error: new Error('Supabase não configurado ou temporariamente indisponível') })
     },
     from: () => ({
-      select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: [], error: new Error('Supabase não configurado') }) }) }),
-      insert: () => Promise.resolve({ error: new Error('Supabase não configurado') }),
-      delete: () => ({ eq: () => Promise.resolve({ error: new Error('Supabase não configurado') }) }),
-      count: () => Promise.resolve({ data: 0, error: new Error('Supabase não configurado') })
+      select: () => ({ 
+        eq: () => ({ 
+          order: () => Promise.resolve({ data: [], error: new Error('Supabase não configurado ou temporariamente indisponível') }) 
+        }),
+        count: () => ({ 
+          eq: () => ({ 
+            order: () => Promise.resolve({ data: [], error: new Error('Supabase não configurado ou temporariamente indisponível') }) 
+          })
+        })
+      }),
+      insert: () => Promise.resolve({ error: new Error('Supabase não configurado ou temporariamente indisponível') }),
+      delete: () => ({ eq: () => Promise.resolve({ error: new Error('Supabase não configurado ou temporariamente indisponível') }) }),
+      count: () => Promise.resolve({ data: 0, error: new Error('Supabase não configurado ou temporariamente indisponível') })
     }),
     storage: {
       from: () => ({
-        upload: () => Promise.resolve({ error: new Error('Supabase não configurado') })
+        upload: () => Promise.resolve({ error: new Error('Supabase não configurado ou temporariamente indisponível') })
       })
     }
   };

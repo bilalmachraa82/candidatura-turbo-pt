@@ -17,6 +17,7 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean | null>(null);
+  const [serviceUnavailable, setServiceUnavailable] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
 
@@ -31,7 +32,9 @@ const LoginPage: React.FC = () => {
       toast({
         variant: "destructive",
         title: "Erro de ligação",
-        description: "Não é possível fazer login enquanto o Supabase não estiver conectado.",
+        description: serviceUnavailable 
+          ? "O serviço Supabase está temporariamente indisponível. Por favor, tente novamente mais tarde."
+          : "Não é possível fazer login enquanto o Supabase não estiver conectado.",
       });
       return;
     }
@@ -47,17 +50,35 @@ const LoginPage: React.FC = () => {
     
     setLoading(true);
     
-    const { error } = await signIn(email, password);
-    
-    if (error) {
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        if (error.message?.includes('Service unavailable') || error.status === 503) {
+          setServiceUnavailable(true);
+          toast({
+            variant: "destructive",
+            title: "Serviço Indisponível",
+            description: "O serviço Supabase está temporariamente indisponível. Por favor, tente novamente mais tarde."
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Erro de autenticação",
+            description: error.message || "Credenciais inválidas. Por favor tente novamente.",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Erro durante login:", err);
       toast({
         variant: "destructive",
-        title: "Erro de autenticação",
-        description: error.message || "Credenciais inválidas. Por favor tente novamente.",
+        title: "Erro inesperado",
+        description: "Ocorreu um erro durante o processo de login. Por favor, tente novamente.",
       });
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -95,7 +116,7 @@ const LoginPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  disabled={!isSupabaseConnected}
+                  disabled={!isSupabaseConnected || serviceUnavailable}
                 />
               </div>
               
@@ -114,13 +135,13 @@ const LoginPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={!isSupabaseConnected}
+                    disabled={!isSupabaseConnected || serviceUnavailable}
                   />
                   <button
                     type="button"
                     className="absolute inset-y-0 right-0 flex items-center pr-3"
                     onClick={() => setShowPassword(!showPassword)}
-                    disabled={!isSupabaseConnected}
+                    disabled={!isSupabaseConnected || serviceUnavailable}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-gray-500" />
@@ -136,7 +157,7 @@ const LoginPage: React.FC = () => {
               <Button 
                 type="submit" 
                 className="w-full bg-pt-green hover:bg-pt-green/90"
-                disabled={loading || !isSupabaseConnected}
+                disabled={loading || !isSupabaseConnected || serviceUnavailable}
               >
                 {loading ? "A autenticar..." : "Entrar"}
               </Button>
@@ -150,8 +171,16 @@ const LoginPage: React.FC = () => {
               
               {!isSupabaseConnected && (
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-sm">
-                  <p className="font-semibold">Configuração necessária:</p>
-                  <p>Para usar esta aplicação, substitua os valores em <code>.env</code> com as suas credenciais Supabase.</p>
+                  <p className="font-semibold">
+                    {serviceUnavailable 
+                      ? "Serviço Supabase Indisponível" 
+                      : "Configuração necessária:"}
+                  </p>
+                  <p>
+                    {serviceUnavailable 
+                      ? "O serviço Supabase está temporariamente indisponível. Por favor, tente novamente mais tarde."
+                      : "Para usar esta aplicação, substitua os valores em .env com as suas credenciais Supabase."}
+                  </p>
                 </div>
               )}
             </CardFooter>
