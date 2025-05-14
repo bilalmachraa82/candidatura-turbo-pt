@@ -1,7 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase, signIn, signUp, signOut, getCurrentUser } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 type UserDetails = {
   id: string;
@@ -47,13 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing session
     const checkUser = async () => {
       try {
-        const currentUser = await getCurrentUser();
-        if (currentUser) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
           const userDetails: UserDetails = {
-            id: currentUser.id,
-            email: currentUser.email || '',
-            name: currentUser.user_metadata?.name || 'Utilizador PT2030',
-            role: currentUser.user_metadata?.role || 'user',
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || 'Utilizador PT2030',
+            role: session.user.user_metadata?.role || 'user',
           };
           setUser(userDetails);
         }
@@ -74,7 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      await signIn(email, password);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error logging in:', error.message);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -83,7 +86,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string, password: string, name: string) => {
     try {
       setLoading(true);
-      await signUp(email, password, { name });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role: 'user',
+          },
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error registering:', error.message);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -92,7 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       setLoading(true);
-      await signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error logging out:', error.message);
+      throw error;
     } finally {
       setLoading(false);
     }
