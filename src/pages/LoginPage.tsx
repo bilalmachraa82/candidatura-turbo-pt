@@ -36,12 +36,12 @@ const LoginPage: React.FC = () => {
         description: "Bem-vindo de volta ao Portal PT2030.",
       });
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       toast({
         variant: "destructive",
         title: "Erro de autenticação",
-        description: "Credenciais incorretas. Por favor tente novamente.",
+        description: error.message || "Credenciais incorretas. Por favor tente novamente.",
       });
     } finally {
       setIsLoading(false);

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAIContext } from '@/context/AIContext';
+import { supabase } from '@/lib/supabase';
 
 interface SectionEditorProps {
   title: string;
@@ -14,6 +15,7 @@ interface SectionEditorProps {
   initialText?: string;
   charLimit: number;
   onTextChange?: (text: string) => void;
+  onSave?: (text: string) => void;
 }
 
 const SectionEditor: React.FC<SectionEditorProps> = ({
@@ -23,10 +25,12 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   projectId,
   initialText = '',
   charLimit,
-  onTextChange
+  onTextChange,
+  onSave
 }) => {
   const [text, setText] = useState(initialText);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { selectedModel } = useAIContext();
   const charsUsed = text.length;
@@ -43,6 +47,15 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   };
 
   const handleGenerateText = async () => {
+    if (!projectId || !sectionKey) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "ID do projeto ou secção em falta."
+      });
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
@@ -83,6 +96,48 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     }
   };
 
+  const handleSave = async () => {
+    if (!projectId || !sectionKey) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao guardar",
+        description: "ID do projeto ou secção em falta."
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    
+    try {
+      // Update section content in Supabase
+      const { error } = await supabase
+        .from('sections')
+        .update({ content: text, updated_at: new Date().toISOString() })
+        .eq('project_id', projectId)
+        .eq('key', sectionKey);
+
+      if (error) throw error;
+
+      if (onSave) {
+        onSave(text);
+      }
+      
+      toast({
+        title: "Secção guardada",
+        description: "O conteúdo foi guardado com sucesso."
+      });
+    } catch (error: any) {
+      console.error("Save error:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao guardar",
+        description: error.message || "Não foi possível guardar o conteúdo."
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="mb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3">
@@ -90,14 +145,24 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
           <h3 className="text-lg font-medium text-pt-blue">{title}</h3>
           <p className="text-sm text-gray-600">{description}</p>
         </div>
-        <Button
-          className="mt-2 sm:mt-0 bg-pt-blue hover:bg-pt-blue/90"
-          onClick={handleGenerateText}
-          disabled={isGenerating}
-        >
-          <Wand2 className="mr-2 h-4 w-4" />
-          {isGenerating ? "A gerar..." : "Gerar com IA"}
-        </Button>
+        <div className="flex gap-2 mt-2 sm:mt-0">
+          <Button
+            className="bg-pt-blue hover:bg-pt-blue/90"
+            onClick={handleGenerateText}
+            disabled={isGenerating}
+          >
+            <Wand2 className="mr-2 h-4 w-4" />
+            {isGenerating ? "A gerar..." : "Gerar com IA"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSave}
+            disabled={isSaving || isOverLimit}
+            className="border-pt-blue text-pt-blue hover:bg-pt-blue/10"
+          >
+            {isSaving ? "A guardar..." : "Guardar"}
+          </Button>
+        </div>
       </div>
       
       <Textarea

@@ -47,19 +47,39 @@ export default async function handler(
     const { data: sections, error: sectionsError } = await supabase
       .from('sections')
       .select('*')
-      .eq('project_id', projectId);
+      .eq('project_id', projectId)
+      .order('key', { ascending: true });
 
     if (sectionsError) {
       throw new Error('Failed to retrieve project sections');
     }
 
-    // 3. Generate document (in a real implementation)
-    // Here we would use jsPDF for PDF or docx library for DOCX format
-    
-    // For now, we'll just mock the response
-    const documentUrl = `https://storage.example.com/exports/${projectId}_${Date.now()}.${format}`;
+    // 3. Fetch attached documents
+    const { data: attachments, error: attachmentsError } = await supabase
+      .from('indexed_files')
+      .select('*')
+      .eq('project_id', projectId);
 
-    // 4. Log the export
+    if (attachmentsError) {
+      console.warn('Warning: Failed to retrieve attachments');
+    }
+
+    // 4. Generate document (in a real implementation)
+    // Here we would use jsPDF for PDF or docx library for DOCX format
+    // For now, we'll just mock the response with a download URL
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `PT2030_${project.name.replace(/\s+/g, '_')}_${timestamp}.${format}`;
+    
+    // In a real implementation, we would:
+    // - Generate the document with the appropriate library
+    // - Upload it to Supabase Storage
+    // - Return the public URL
+    
+    // Mock storage URL
+    const documentUrl = `https://storage.example.com/exports/${projectId}/${fileName}`;
+
+    // 5. Log the export
     await supabase
       .from('exports')
       .insert({
@@ -70,15 +90,13 @@ export default async function handler(
         document_url: documentUrl
       });
 
-    // In a real implementation, we would:
-    // - Generate the document with the appropriate library
-    // - Upload it to Supabase Storage
-    // - Return the public URL
-
     return res.status(200).json({
       success: true,
       url: documentUrl,
+      fileName,
       format,
+      sections: sections.length,
+      attachments: attachments?.length || 0
     });
   } catch (error: any) {
     console.error('Error exporting document:', error);

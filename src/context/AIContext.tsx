@@ -1,20 +1,31 @@
 
 import React, { createContext, useState, useContext } from 'react';
 
-export type AIModel = 'gpt-4o' | 'gemini-2.5-pro' | 'claude-3.7';
+type AIModel = 'gpt-4o' | 'gemini-pro' | 'claude-3-opus';
 
 interface AIContextType {
   selectedModel: AIModel;
   setSelectedModel: (model: AIModel) => void;
+  loading: boolean;
+  ragStatus: 'poor' | 'medium' | 'good';
+  setRagStatus: (status: 'poor' | 'medium' | 'good') => void;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
 
 export function AIProvider({ children }: { children: React.ReactNode }) {
   const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o');
+  const [loading, setLoading] = useState(false);
+  const [ragStatus, setRagStatus] = useState<'poor' | 'medium' | 'good'>('medium');
 
   return (
-    <AIContext.Provider value={{ selectedModel, setSelectedModel }}>
+    <AIContext.Provider value={{ 
+      selectedModel, 
+      setSelectedModel, 
+      loading, 
+      ragStatus,
+      setRagStatus
+    }}>
       {children}
     </AIContext.Provider>
   );
