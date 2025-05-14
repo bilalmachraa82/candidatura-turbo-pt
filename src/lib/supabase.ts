@@ -1,56 +1,14 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Get Supabase URL and Anon Key from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// For development only - this allows the app to load even without real credentials
-// In production, these should be properly set in the environment variables
-const devFallbackUrl = 'https://placeholder-supabase-url.supabase.co';
-const devFallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder-key';
-
-// Check if the environment variables are set
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('WARNING: Missing Supabase environment variables. Using development placeholders. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY for proper functionality.');
+  console.error('Supabase URL or Anonymous Key missing. Please check your environment variables.');
 }
 
-// Initialize the Supabase client with fallback values for development
 export const supabase = createClient(
-  supabaseUrl || devFallbackUrl, 
-  supabaseAnonKey || devFallbackKey
+  supabaseUrl || '',
+  supabaseAnonKey || ''
 );
-
-// Authentication helper functions
-export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  return data;
-};
-
-export const signUp = async (email: string, password: string, metadata?: { [key: string]: any }) => {
-  const { data, error } = await supabase.auth.signUp({ 
-    email, 
-    password,
-    options: {
-      data: metadata
-    }
-  });
-  if (error) throw error;
-  return data;
-};
-
-export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-};
-
-export const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-};
-
-export const getSession = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
-};

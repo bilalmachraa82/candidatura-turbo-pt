@@ -13,6 +13,17 @@ restartPolicyMaxRetries = 10
 NODE_ENV = "production"
 VITE_PUBLIC_URL = "${RAILWAY_STATIC_URL}"
 
+# Make sure environment variables from Railway Secrets are available
+VITE_SUPABASE_URL = "${VITE_SUPABASE_URL}"
+VITE_SUPABASE_ANON_KEY = "${VITE_SUPABASE_ANON_KEY}"
+VITE_FLOWISE_URL = "${VITE_FLOWISE_URL}"
+VITE_FLOWISE_API_KEY = "${VITE_FLOWISE_API_KEY}"
+
 [service]
 healthcheckPath = "/api/health"
 healthcheckTimeout = 60
+
+[[ports]]
+port = "8080"
+internal = false
+protocol = "HTTP"

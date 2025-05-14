@@ -1,162 +1,236 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, FileText, Calendar } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
 import NewProjectDialog from '@/components/NewProjectDialog';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface Project {
   id: string;
   name: string;
-  date: string;
-  progress: number;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  description: string | null;
+  created_at: string;
+  status: string;
+  type: string;
 }
 
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'Hotel Rural Sustentável',
-    date: '2025-03-10',
-    progress: 67,
-    status: 'draft',
-  },
-  {
-    id: '2',
-    name: 'Restaurante Típico do Algarve',
-    date: '2025-02-15',
-    progress: 100,
-    status: 'submitted',
-  },
-  {
-    id: '3',
-    name: 'Agência de Turismo de Aventura',
-    date: '2025-01-22',
-    progress: 35,
-    status: 'draft',
-  },
-];
-
 const DashboardPage: React.FC = () => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const getStatusColor = (status: Project['status']) => {
-    switch (status) {
-      case 'draft': return 'bg-amber-100 text-amber-800';
-      case 'submitted': return 'bg-blue-100 text-blue-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  useEffect(() => {
+    fetchProjects();
+  }, [user]);
+
+  const fetchProjects = async () => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os projetos."
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getStatusText = (status: Project['status']) => {
-    switch (status) {
-      case 'draft': return 'Rascunho';
-      case 'submitted': return 'Submetido';
-      case 'approved': return 'Aprovado';
-      case 'rejected': return 'Rejeitado';
-      default: return status;
+  const handleCreateProject = async (projectData: { name: string; description: string; type: string }) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          name: projectData.name,
+          description: projectData.description,
+          type: projectData.type,
+          user_id: user.id,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Projeto criado",
+        description: "O seu novo projeto foi criado com sucesso."
+      });
+
+      // Add the new project to the list
+      setProjects((prev) => [data, ...prev]);
+      
+      // Create default sections for the new project
+      await createDefaultSections(data.id);
+      
+      return data.id;
+    } catch (error) {
+      console.error('Error creating project:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível criar o projeto."
+      });
+      return null;
     }
   };
 
-  const handleCreateProject = (projectData: { name: string }) => {
-    const newProject: Project = {
-      id: Date.now().toString(),
-      name: projectData.name,
-      date: new Date().toISOString().slice(0, 10),
-      progress: 0,
-      status: 'draft',
-    };
-    
-    setProjects([newProject, ...projects]);
-    
-    toast({
-      title: 'Projeto criado',
-      description: `O projeto "${projectData.name}" foi criado com sucesso.`
-    });
+  const createDefaultSections = async (projectId: string) => {
+    try {
+      const defaultSections = [
+        {
+          project_id: projectId,
+          key: 'analise_mercado',
+          title: 'Análise de Mercado',
+          description: 'Avaliação do mercado-alvo, tendências e oportunidades',
+          char_limit: 2500
+        },
+        {
+          project_id: projectId,
+          key: 'proposta_valor',
+          title: 'Proposta de Valor',
+          description: 'Definição do valor único oferecido ao mercado',
+          char_limit: 1500
+        },
+        {
+          project_id: projectId,
+          key: 'plano_financeiro',
+          title: 'Plano Financeiro',
+          description: 'Projeções financeiras e análise de viabilidade',
+          char_limit: 3000
+        }
+      ];
+
+      const { error } = await supabase
+        .from('sections')
+        .insert(defaultSections);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error creating default sections:', error);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'draft':
+        return <Badge variant="outline" className="bg-gray-100">Rascunho</Badge>;
+      case 'review':
+        return <Badge className="bg-amber-500">Em Revisão</Badge>;
+      case 'submitted':
+        return <Badge className="bg-green-500">Submetido</Badge>;
+      case 'approved':
+        return <Badge className="bg-pt-green text-white">Aprovado</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Recusado</Badge>;
+      default:
+        return <Badge variant="outline">Desconhecido</Badge>;
+    }
   };
 
   return (
     <Layout>
       <div className="pt-container pt-section">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-pt-blue">Olá, {user?.name || 'Utilizador'}</h1>
-            <p className="text-gray-600 mt-1">Bem-vindo ao seu painel de gestão de projetos PT2030</p>
+            <h1 className="text-3xl font-bold text-pt-blue">Meus Projetos</h1>
+            <p className="text-gray-600 mt-2">Gerencie as suas candidaturas PT2030</p>
           </div>
-          <div className="mt-4 md:mt-0">
-            <Button 
-              className="bg-pt-green hover:bg-pt-green/90"
-              onClick={() => setDialogOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Projeto
-            </Button>
-          </div>
+          <Button 
+            onClick={() => setIsDialogOpen(true)}
+            className="mt-4 md:mt-0 bg-pt-green text-white hover:bg-pt-blue"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Projeto
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => (
-            <Link to={`/projetos/${project.id}`} key={project.id} className="block">
-              <Card className="h-full hover:shadow-md transition-shadow">
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="border rounded-lg h-48 animate-pulse bg-gray-100"></div>
+            ))}
+          </div>
+        ) : projects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project) => (
+              <Card key={project.id} className="transition-shadow hover:shadow-md">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
+                  <div className="flex justify-between items-start">
                     <CardTitle className="text-xl text-pt-blue">{project.name}</CardTitle>
-                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(project.status)}`}>
-                      {getStatusText(project.status)}
-                    </span>
+                    {getStatusBadge(project.status)}
                   </div>
+                  <CardDescription className="line-clamp-2">
+                    {project.description || 'Sem descrição'}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm text-gray-600">
-                        {new Date(project.date).toLocaleDateString('pt-PT')}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Progresso</span>
-                        <span className="text-sm text-gray-500">{project.progress}%</span>
-                      </div>
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <span className="font-medium mr-2">Tipo:</span>
+                    <span>{project.type || 'Standard'}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-500 mt-2">
+                    <span className="font-medium mr-2">Criado em:</span>
+                    <span>{new Date(project.created_at).toLocaleDateString('pt-PT')}</span>
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <div className="w-full flex justify-between items-center">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <FileText className="h-4 w-4 mr-1" />
-                      <span>
-                        {project.status === 'draft' ? 'Continuar edição' : 'Ver detalhes'}
-                      </span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="text-pt-blue hover:text-pt-green">
-                      Abrir →
+                  <Link to={`/projetos/${project.id}`} className="w-full">
+                    <Button variant="outline" className="w-full border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Abrir Projeto
                     </Button>
-                  </div>
+                  </Link>
                 </CardFooter>
               </Card>
-            </Link>
-          ))}
-        </div>
-      </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center p-12 bg-gray-50 rounded-lg border border-dashed">
+            <FileText className="h-12 w-12 mx-auto text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Sem Projetos</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Ainda não tem nenhum projeto. Comece por criar um novo projeto.
+            </p>
+            <Button 
+              onClick={() => setIsDialogOpen(true)}
+              className="mt-6 bg-pt-green text-white hover:bg-pt-blue"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Criar Primeiro Projeto
+            </Button>
+          </div>
+        )}
 
-      <NewProjectDialog 
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onCreateProject={handleCreateProject}
-      />
+        <NewProjectDialog 
+          open={isDialogOpen} 
+          onOpenChange={setIsDialogOpen}
+          onCreateProject={handleCreateProject}
+        />
+      </div>
     </Layout>
   );
 };

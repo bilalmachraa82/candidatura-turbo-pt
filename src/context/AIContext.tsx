@@ -1,40 +1,45 @@
 
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
-type AIModel = 'gpt-4o' | 'gemini-pro' | 'claude-3-opus';
+type AIModel = 'gpt-4o' | 'claude-3-sonnet' | 'gemini-pro';
 
-interface AIContextType {
-  selectedModel: AIModel;
-  setSelectedModel: (model: AIModel) => void;
-  loading: boolean;
-  ragStatus: 'poor' | 'medium' | 'good';
-  setRagStatus: (status: 'poor' | 'medium' | 'good') => void;
+interface AIContextProps {
+  model: AIModel;
+  setModel: (model: AIModel) => void;
+  charsGenerated: number;
+  addCharsGenerated: (count: number) => void;
+  resetCharsGenerated: () => void;
 }
 
-const AIContext = createContext<AIContextType | undefined>(undefined);
+const AIContext = createContext<AIContextProps | undefined>(undefined);
 
-export function AIProvider({ children }: { children: React.ReactNode }) {
-  const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o');
-  const [loading, setLoading] = useState(false);
-  const [ragStatus, setRagStatus] = useState<'poor' | 'medium' | 'good'>('medium');
+export const AIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [model, setModel] = useState<AIModel>('gpt-4o');
+  const [charsGenerated, setCharsGenerated] = useState(0);
 
-  return (
-    <AIContext.Provider value={{ 
-      selectedModel, 
-      setSelectedModel, 
-      loading, 
-      ragStatus,
-      setRagStatus
-    }}>
-      {children}
-    </AIContext.Provider>
-  );
-}
+  const addCharsGenerated = (count: number) => {
+    setCharsGenerated(prev => prev + count);
+  };
 
-export const useAIContext = () => {
+  const resetCharsGenerated = () => {
+    setCharsGenerated(0);
+  };
+
+  const value = {
+    model,
+    setModel,
+    charsGenerated,
+    addCharsGenerated,
+    resetCharsGenerated
+  };
+
+  return <AIContext.Provider value={value}>{children}</AIContext.Provider>;
+};
+
+export const useAI = () => {
   const context = useContext(AIContext);
   if (context === undefined) {
-    throw new Error('useAIContext must be used within an AIProvider');
+    throw new Error('useAI must be used within an AIProvider');
   }
   return context;
 };
