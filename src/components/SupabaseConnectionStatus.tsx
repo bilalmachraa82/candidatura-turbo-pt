@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { AlertCircle, CheckCircle, ExclamationTriangle } from 'lucide-react';
+import { AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface SupabaseConnectionStatusProps {
@@ -86,7 +86,7 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
   if (serviceUnavailable) {
     return (
       <div className="flex items-center text-sm text-amber-500">
-        <ExclamationTriangle className="mr-1 h-4 w-4" />
+        <AlertTriangle className="mr-1 h-4 w-4" />
         <span>Supabase serviço temporariamente indisponível</span>
       </div>
     );
