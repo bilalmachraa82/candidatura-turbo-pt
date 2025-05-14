@@ -4,12 +4,21 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check if the required environment variables are set
+// Verificação mais detalhada das variáveis de ambiente
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase URL or Anonymous Key missing. Please check your environment variables.');
+  console.error(`
+    ⚠️ Configuração do Supabase incompleta ⚠️
+    
+    Por favor, configure as variáveis de ambiente:
+    
+    VITE_SUPABASE_URL = ${supabaseUrl ? '✓' : '✗'} ${!supabaseUrl ? '(em falta)' : ''}
+    VITE_SUPABASE_ANON_KEY = ${supabaseAnonKey ? '✓' : '✗'} ${!supabaseAnonKey ? '(em falta)' : ''}
+    
+    Consulte o arquivo .env.local.example para mais detalhes.
+  `);
 }
 
-// Validate that the URL is properly formatted
+// Validação da URL
 const isValidUrl = (url: string) => {
   try {
     new URL(url);
@@ -19,32 +28,52 @@ const isValidUrl = (url: string) => {
   }
 };
 
-// Only create the client if we have valid values
+// Verificar se a URL é válida
+if (supabaseUrl && !isValidUrl(supabaseUrl)) {
+  console.error(`
+    ⚠️ URL do Supabase inválida: "${supabaseUrl}" ⚠️
+    
+    O formato correto deve ser algo como:
+    https://your-project-id.supabase.co
+  `);
+}
+
+// Criar o cliente Supabase apenas se as verificações passarem
 let supabase;
 
 if (supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  try {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.info('✅ Cliente Supabase inicializado com sucesso.');
+  } catch (error) {
+    console.error('❌ Erro ao inicializar o cliente Supabase:', error);
+    supabase = createMockSupabaseClient();
+  }
 } else {
-  console.error('Invalid Supabase URL or missing credentials. Supabase client not initialized.');
-  
-  // Create a mock client that will show appropriate errors when used
-  supabase = {
+  console.warn('⚠️ Utilizando cliente Supabase simulado devido a configuração incompleta.');
+  supabase = createMockSupabaseClient();
+}
+
+// Função para criar um cliente simulado quando a configuração está incorreta
+function createMockSupabaseClient() {
+  return {
     auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: new Error('Supabase not configured') }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: new Error('Supabase não configurado') }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      signUp: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-      signInWithPassword: () => Promise.resolve({ error: new Error('Supabase not configured') }),
+      signUp: () => Promise.resolve({ error: new Error('Supabase não configurado') }),
+      signInWithPassword: () => Promise.resolve({ error: new Error('Supabase não configurado') }),
       signOut: () => Promise.resolve({ error: null }),
-      resetPasswordForEmail: () => Promise.resolve({ error: new Error('Supabase not configured') })
+      resetPasswordForEmail: () => Promise.resolve({ error: new Error('Supabase não configurado') })
     },
     from: () => ({
-      select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: [], error: new Error('Supabase not configured') }) }) }),
-      insert: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-      delete: () => ({ eq: () => Promise.resolve({ error: new Error('Supabase not configured') }) })
+      select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: [], error: new Error('Supabase não configurado') }) }) }),
+      insert: () => Promise.resolve({ error: new Error('Supabase não configurado') }),
+      delete: () => ({ eq: () => Promise.resolve({ error: new Error('Supabase não configurado') }) }),
+      count: () => Promise.resolve({ data: 0, error: new Error('Supabase não configurado') })
     }),
     storage: {
       from: () => ({
-        upload: () => Promise.resolve({ error: new Error('Supabase not configured') })
+        upload: () => Promise.resolve({ error: new Error('Supabase não configurado') })
       })
     }
   };

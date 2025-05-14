@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,17 +9,32 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import LogoPT2030 from '@/components/LogoPT2030';
+import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean | null>(null);
   const { signIn } = useAuth();
   const { toast } = useToast();
 
+  const handleSupabaseStatusChange = (status: boolean) => {
+    setIsSupabaseConnected(status);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isSupabaseConnected) {
+      toast({
+        variant: "destructive",
+        title: "Erro de ligação",
+        description: "Não é possível fazer login enquanto o Supabase não estiver conectado.",
+      });
+      return;
+    }
     
     if (!email || !password) {
       toast({
@@ -60,6 +76,12 @@ const LoginPage: React.FC = () => {
             <CardDescription className="text-center">
               Aceda à sua conta para gerir as candidaturas
             </CardDescription>
+            <div className="mt-2 flex justify-center">
+              <SupabaseConnectionStatus 
+                showToast={true} 
+                onStatusChange={handleSupabaseStatusChange}
+              />
+            </div>
           </CardHeader>
           
           <form onSubmit={handleSubmit}>
@@ -73,6 +95,7 @@ const LoginPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={!isSupabaseConnected}
                 />
               </div>
               
@@ -91,11 +114,13 @@ const LoginPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={!isSupabaseConnected}
                   />
                   <button
                     type="button"
                     className="absolute inset-y-0 right-0 flex items-center pr-3"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={!isSupabaseConnected}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-gray-500" />
@@ -111,7 +136,7 @@ const LoginPage: React.FC = () => {
               <Button 
                 type="submit" 
                 className="w-full bg-pt-green hover:bg-pt-green/90"
-                disabled={loading}
+                disabled={loading || !isSupabaseConnected}
               >
                 {loading ? "A autenticar..." : "Entrar"}
               </Button>
@@ -122,6 +147,13 @@ const LoginPage: React.FC = () => {
                   Registar
                 </Link>
               </p>
+              
+              {!isSupabaseConnected && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-sm">
+                  <p className="font-semibold">Configuração necessária:</p>
+                  <p>Para usar esta aplicação, substitua os valores em <code>.env</code> com as suas credenciais Supabase.</p>
+                </div>
+              )}
             </CardFooter>
           </form>
         </Card>
