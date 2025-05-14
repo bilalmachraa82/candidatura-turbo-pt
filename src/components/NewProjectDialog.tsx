@@ -49,14 +49,15 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
     setIsSubmitting(true);
     
     try {
-      // Create the project in Supabase
+      // Create the project in Supabase - note the use of title instead of name to match the schema
       const { data, error } = await supabase
         .from('projects')
         .insert({
           title: projectName,
           description: projectDescription,
-          type: projectType,
+          // Ensure we're using values that match the schema exactly
           status: 'draft'
+          // Removed type field since it's causing issues
         })
         .select()
         .single();
@@ -76,7 +77,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
         onCreateProject({
           name: projectName,
           description: projectDescription,
-          type: projectType,
+          type: projectType, // Keep this for UI consistency
           id: data.id
         });
       }
@@ -192,6 +193,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
                 onChange={(e) => setProjectType(e.target.value)}
                 className="col-span-3"
                 placeholder="Tipo de projeto"
+                disabled={isSubmitting}
               />
             </div>
           </div>
