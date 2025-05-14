@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,8 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
   const [isChecking, setIsChecking] = useState(true);
   const [serviceUnavailable, setServiceUnavailable] = useState(false);
   const { toast } = useToast();
+  const toastShownRef = useRef(false);
+  const checkingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -39,7 +41,10 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
           onStatusChange(connected);
         }
         
-        if (showToast) {
+        // Mostrar toast apenas uma vez ao alterar o estado da conexão
+        if (showToast && !toastShownRef.current) {
+          toastShownRef.current = true;
+          
           if (connected) {
             toast({
               title: "Ligação ao Supabase estabelecida",
@@ -68,8 +73,24 @@ const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({
       }
     };
 
+    // Verificação inicial
     checkConnection();
-  }, [showToast, onStatusChange, toast]);
+    
+    // Configurar verificação periódica com intervalo maior (a cada 30 segundos)
+    checkingIntervalRef.current = setInterval(() => {
+      // Resetar o estado do toast para permitir nova notificação apenas se o estado mudar
+      if (isConnected === false) {
+        toastShownRef.current = false;
+        checkConnection();
+      }
+    }, 30000);
+
+    return () => {
+      if (checkingIntervalRef.current) {
+        clearInterval(checkingIntervalRef.current);
+      }
+    };
+  }, [showToast, onStatusChange, toast, isConnected, serviceUnavailable]);
 
   if (isChecking) {
     return (

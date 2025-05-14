@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import LogoPT2030 from '@/components/LogoPT2030';
 import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -18,11 +19,23 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean | null>(null);
   const [serviceUnavailable, setServiceUnavailable] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const { toast } = useToast();
 
+  // Limpar erros quando o usuário corrige os campos
+  useEffect(() => {
+    if (authError) {
+      setAuthError(null);
+    }
+  }, [email, password]);
+
   const handleSupabaseStatusChange = (status: boolean) => {
     setIsSupabaseConnected(status);
+    if (status) {
+      // Se reconectar, limpar mensagem de serviço indisponível
+      setServiceUnavailable(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,11 +53,7 @@ const LoginPage: React.FC = () => {
     }
     
     if (!email || !password) {
-      toast({
-        variant: "destructive",
-        title: "Dados em falta",
-        description: "Por favor preencha todos os campos.",
-      });
+      setAuthError("Por favor preencha todos os campos.");
       return;
     }
     
@@ -54,28 +63,22 @@ const LoginPage: React.FC = () => {
       const { error } = await signIn(email, password);
       
       if (error) {
+        console.log("Erro de autenticação:", error);
+        
         if (error.message?.includes('Service unavailable') || error.status === 503) {
           setServiceUnavailable(true);
-          toast({
-            variant: "destructive",
-            title: "Serviço Indisponível",
-            description: "O serviço Supabase está temporariamente indisponível. Por favor, tente novamente mais tarde."
-          });
+          setAuthError("O serviço Supabase está temporariamente indisponível. Por favor, tente novamente mais tarde.");
+        } else if (error.message?.includes('Invalid login credentials')) {
+          setAuthError("Credenciais inválidas. Por favor verifique seu email e senha.");
+        } else if (error.message?.includes('Email not confirmed')) {
+          setAuthError("Email não confirmado. Por favor verifique sua caixa de entrada para confirmar o seu email.");
         } else {
-          toast({
-            variant: "destructive",
-            title: "Erro de autenticação",
-            description: error.message || "Credenciais inválidas. Por favor tente novamente.",
-          });
+          setAuthError(error.message || "Ocorreu um erro durante a autenticação. Por favor tente novamente.");
         }
       }
     } catch (err) {
       console.error("Erro durante login:", err);
-      toast({
-        variant: "destructive",
-        title: "Erro inesperado",
-        description: "Ocorreu um erro durante o processo de login. Por favor, tente novamente.",
-      });
+      setAuthError("Ocorreu um erro inesperado. Por favor, tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -99,7 +102,6 @@ const LoginPage: React.FC = () => {
             </CardDescription>
             <div className="mt-2 flex justify-center">
               <SupabaseConnectionStatus 
-                showToast={true} 
                 onStatusChange={handleSupabaseStatusChange}
               />
             </div>
@@ -107,6 +109,13 @@ const LoginPage: React.FC = () => {
           
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {authError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  <AlertDescription>{authError}</AlertDescription>
+                </Alert>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input 
@@ -116,7 +125,8 @@ const LoginPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  disabled={!isSupabaseConnected || serviceUnavailable}
+                  disabled={loading || !isSupabaseConnected || serviceUnavailable}
+                  className={authError ? "border-red-300 focus:border-red-500" : ""}
                 />
               </div>
               
@@ -135,13 +145,14 @@ const LoginPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={!isSupabaseConnected || serviceUnavailable}
+                    disabled={loading || !isSupabaseConnected || serviceUnavailable}
+                    className={authError ? "border-red-300 focus:border-red-500" : ""}
                   />
                   <button
                     type="button"
                     className="absolute inset-y-0 right-0 flex items-center pr-3"
                     onClick={() => setShowPassword(!showPassword)}
-                    disabled={!isSupabaseConnected || serviceUnavailable}
+                    disabled={loading || !isSupabaseConnected || serviceUnavailable}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-gray-500" />
