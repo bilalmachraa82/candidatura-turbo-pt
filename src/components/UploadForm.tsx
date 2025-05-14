@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { UploadCloud, X, FileText, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,10 +92,10 @@ const UploadForm: React.FC<UploadFormProps> = ({
         onUploadComplete(file.name);
       }
       
-      if (onFileUploaded && result.file) {
+      if (onFileUploaded) {
         onFileUploaded({
           name: file.name,
-          url: result.file.url || '',
+          url: '', // Since the indexDocument doesn't return a URL, we'll just use an empty string
           type: file.type
         });
       }
