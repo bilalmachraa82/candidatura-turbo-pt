@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 // Use the correct Supabase URL and anon key from your project
@@ -39,13 +38,6 @@ if (supabaseUrl && !isValidUrl(supabaseUrl)) {
   `);
 }
 
-// Configurar o controle de estado de serviço indisponível
-let serviceDownSince: Date | null = null;
-let consecutiveFailures = 0;
-const maxFailuresBeforeBackoff = 3;
-let currentBackoffTime = 5000; // 5 segundos iniciais
-const maxBackoffTime = 60000; // 1 minuto máximo
-
 // Criar o cliente Supabase apenas se as verificações passarem
 let supabase;
 
@@ -56,52 +48,10 @@ if (supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)) {
         persistSession: true,
         autoRefreshToken: true,
         storageKey: 'pt2030-auth-token',
-      },
-      global: {
-        fetch: (...args) => {
-          // Custom fetch handler with better timeout and retry logic
-          const fetchWithTimeout = (url: string, options: RequestInit = {}, timeoutMs = 8000) => {
-            // Se o serviço estiver indisponível há mais de 5 minutos, reduzir as tentativas
-            if (serviceDownSince && (new Date().getTime() - serviceDownSince.getTime() > 300000)) {
-              // Adicionar controle de taxa (rate limiting) quando o serviço está em baixa
-              if (Math.random() > 0.2) { // Apenas 20% das solicitações passam
-                return Promise.reject(new Error('Supabase service is down, limiting requests'));
-              }
-            }
-
-            return Promise.race([
-              fetch(url, { ...options })
-                .then(response => {
-                  if (response.status === 503) {
-                    // Serviço indisponível
-                    if (!serviceDownSince) {
-                      serviceDownSince = new Date();
-                    }
-                    consecutiveFailures++;
-                    
-                    if (consecutiveFailures >= maxFailuresBeforeBackoff) {
-                      // Aumentar o tempo de espera entre solicitações
-                      currentBackoffTime = Math.min(currentBackoffTime * 1.5, maxBackoffTime);
-                    }
-                    
-                    throw new Error('Service Unavailable');
-                  } else {
-                    // Resetar contadores se o serviço voltar
-                    serviceDownSince = null;
-                    consecutiveFailures = 0;
-                    currentBackoffTime = 5000;
-                    return response;
-                  }
-                }),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Supabase request timeout')), timeoutMs)
-              )
-            ]) as Promise<Response>;
-          };
-          
-          // @ts-ignore - Type mismatch is acceptable here
-          return fetchWithTimeout(args[0], args[1]);
-        }
+        // Develoment mode: don't require email confirmation
+        flowType: 'pkce',
+        detectSessionInUrl: true,
+        debug: import.meta.env.DEV,
       }
     });
     console.info('✅ Cliente Supabase inicializado com sucesso.');

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
@@ -39,6 +38,11 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  // Helper function to type check if the error is an AuthError
+  const isAuthError = (error: Error | AuthError): error is AuthError => {
+    return 'status' in error;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -61,23 +65,33 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     
     try {
-      const { error } = await signIn(email, password);
+      const { error, emailNotConfirmed } = await signIn(email, password);
       
       if (error) {
         console.log("Erro de autenticação:", error);
         
         if (error.message?.includes('Service unavailable') || 
-            // Check if it's an AuthError with a status property
             (isAuthError(error) && error.status === 503)) {
           setServiceUnavailable(true);
           setAuthError("O serviço Supabase está temporariamente indisponível. Por favor, tente novamente mais tarde.");
         } else if (error.message?.includes('Invalid login credentials')) {
           setAuthError("Credenciais inválidas. Por favor verifique seu email e senha.");
         } else if (error.message?.includes('Email not confirmed')) {
-          setAuthError("Email não confirmado. Por favor verifique sua caixa de entrada para confirmar o seu email.");
+          // This is now handled in the AuthContext with the workaround
+          setAuthError("A entrar no sistema sem confirmação de email...");
+          setTimeout(() => {
+            // Retry login after a short delay
+            handleSubmit(e);
+          }, 1500);
         } else {
           setAuthError(error.message || "Ocorreu um erro durante a autenticação. Por favor tente novamente.");
         }
+      } else if (emailNotConfirmed) {
+        // Successfully logged in with the email not confirmed workaround
+        toast({
+          title: "Login bem sucedido",
+          description: "Bem-vindo ao sistema!",
+        });
       }
     } catch (err) {
       console.error("Erro durante login:", err);
@@ -85,11 +99,6 @@ const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Helper function to type check if the error is an AuthError
-  const isAuthError = (error: Error | AuthError): error is AuthError => {
-    return 'status' in error;
   };
 
   return (
