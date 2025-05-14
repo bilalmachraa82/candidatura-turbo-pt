@@ -87,11 +87,12 @@ export interface UploadedFile {
 
 export interface IndexingResult {
   success: boolean;
+  documentId?: string; // Add this missing property
+  message: string;
   file?: {
     id: string;
     name: string;
     type: string;
     url: string;
   };
-  message: string;
 }

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Wand2, Save } from 'lucide-react';
+import { Wand2, Save, FileText, FileSpreadsheet } from 'lucide-react'; // Added missing icons
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';

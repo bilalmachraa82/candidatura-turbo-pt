@@ -10,6 +10,7 @@ import SectionEditor from '@/components/SectionEditor';
 import SidebarPanel from '@/components/SidebarPanel';
 import { supabase } from '@/lib/supabase';
 import { exportDocument } from '@/api/exportDocument';
+import { UploadFormProps } from '@/types/components';
 
 interface UploadedFile {
   id: string;
