@@ -4,7 +4,7 @@ import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useAIContext } from '@/context/AIContext';
+import { useAI } from '@/context/AIContext';
 import { supabase } from '@/lib/supabase';
 import { generateText } from '@/api/generateText';
 
@@ -33,7 +33,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
-  const { selectedModel } = useAIContext();
+  const { model: selectedModel } = useAI();
   const charsUsed = text.length;
   const isOverLimit = charsUsed > charLimit;
 

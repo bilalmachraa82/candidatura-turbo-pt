@@ -11,12 +11,12 @@ type HeaderProps = {
 };
 
 const Header: React.FC<HeaderProps> = ({ isLoggedIn = false }) => {
-  const { logout } = useAuth();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate('/login');
     } catch (error) {
       console.error('Error logging out:', error);

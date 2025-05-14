@@ -16,7 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useAIContext } from '@/context/AIContext';
+import { useAI } from '@/context/AIContext';
 
 type ModelOption = {
   value: 'gpt-4o' | 'gemini-pro' | 'claude-3-opus';
@@ -48,7 +48,7 @@ const models: ModelOption[] = [
 
 const ModelSelector = () => {
   const [open, setOpen] = React.useState(false);
-  const { selectedModel, setSelectedModel } = useAIContext();
+  const { model: selectedModel, setModel: setSelectedModel } = useAI();
 
   const selectedModelData = models.find(model => model.value === selectedModel);
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogoPT2030 } from '@/components/LogoPT2030';
+import LogoPT2030 from '@/components/LogoPT2030';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
