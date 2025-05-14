@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
@@ -6,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import LogoPT2030 from '@/components/LogoPT2030';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +18,7 @@ const RegisterPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const { signUp } = useAuth();
   const { toast } = useToast();
 
@@ -58,14 +62,76 @@ const RegisterPage: React.FC = () => {
         title: "Erro no registo",
         description: error.message || "Não foi possível criar a conta. Por favor tente novamente.",
       });
+      setLoading(false);
     } else {
+      setSuccess(true);
       setEmail('');
       setPassword('');
       setConfirmPassword('');
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex flex-col items-center">
+            <LogoPT2030 />
+            <h2 className="mt-6 text-center text-3xl font-bold text-pt-blue">
+              Verifique o seu Email
+            </h2>
+          </div>
+          
+          <Card className="border-2 border-pt-green/10">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold text-center">Registo Bem Sucedido</CardTitle>
+              <CardDescription className="text-center">
+                Foi enviado um email de confirmação para o seu endereço.
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <Alert className="bg-pt-green/10 border-pt-green">
+                <AlertCircle className="h-4 w-4 text-pt-green" />
+                <AlertDescription>
+                  Por favor verifique a sua caixa de entrada e clique no link de confirmação.
+                  O link irá redirecioná-lo para a página de login.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="text-sm text-gray-600">
+                <p className="mb-2">Não recebeu o email?</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Verifique a pasta de spam</li>
+                  <li>Verifique se o endereço está correto</li>
+                  <li>Aguarde alguns minutos</li>
+                </ul>
+              </div>
+            </CardContent>
+            
+            <CardFooter className="flex flex-col space-y-4">
+              <Button 
+                type="button" 
+                variant="outline"
+                className="w-full"
+                onClick={() => setSuccess(false)}
+              >
+                Voltar ao registo
+              </Button>
+              
+              <p className="text-center text-sm text-gray-600">
+                Já tem conta?{" "}
+                <Link to="/login" className="font-medium text-pt-blue hover:underline">
+                  Entrar
+                </Link>
+              </p>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
