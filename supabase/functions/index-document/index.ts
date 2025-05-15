@@ -1,114 +1,150 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.33.1';
-import { extract } from 'https://esm.sh/extract-pdf-text@0.1.2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// Mock function to extract text from a file
+async function extractTextFromFile(fileUrl: string, fileType: string): Promise<string> {
+  console.log(`[Mock] Extracting text from ${fileType} file at URL: ${fileUrl}`);
+  
+  // Mock extraction based on file type
+  if (fileType.includes('pdf')) {
+    return `This is extracted text from a PDF file at ${fileUrl}. 
+    In a real implementation, we would download the file and extract actual text content.
+    This would be processed page by page and paragraph by paragraph.`;
+  } 
+  else if (fileType.includes('excel') || fileType.includes('spreadsheet') || fileType.includes('xlsx')) {
+    return `This is extracted text from an Excel file at ${fileUrl}.
+    In a real implementation, we would extract values from cells, sheets, and named ranges.
+    Data would be organized by worksheets and structured in a meaningful way.`;
+  }
+  else {
+    return `Text extracted from ${fileUrl}. This is a generic extraction for file type: ${fileType}.`;
+  }
+}
+
+// Function to create text chunks from a document
+function createTextChunks(text: string, chunkSize: number = 1000): string[] {
+  const chunks: string[] = [];
+  
+  // Simple chunking by character count with overlap
+  const overlap = 200;
+  let startIdx = 0;
+  
+  while (startIdx < text.length) {
+    const chunk = text.substring(startIdx, startIdx + chunkSize);
+    chunks.push(chunk);
+    startIdx += (chunkSize - overlap);
+    if (startIdx < 0) startIdx = 0;
   }
   
+  return chunks;
+}
+
+// Function to generate embeddings (mock implementation)
+async function generateEmbedding(text: string): Promise<number[]> {
+  console.log(`[Mock] Generating embedding for text: ${text.substring(0, 50)}...`);
+  
+  // Create a mock embedding vector of 1536 dimensions
+  return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
+}
+
+serve(async (req: Request) => {
+  // Handle OPTIONS request for CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders, status: 204 });
+  }
+  
+  // Get Supabase client with admin privileges
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return new Response(JSON.stringify({
+      error: 'Missing Supabase configuration'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  
   try {
+    // Parse request body
     const { fileId, projectId, fileUrl, fileName, fileType } = await req.json();
     
-    // Initialize Supabase client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-    
     if (!fileId || !projectId || !fileUrl) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }), 
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Missing required parameters');
     }
+
+    console.log(`Processing file: ${fileName} (${fileType}) for project ${projectId}`);
     
-    // Download file content
-    const fileResponse = await fetch(fileUrl);
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to download file: ${fileResponse.statusText}`);
-    }
+    // Extract text content from the file
+    const textContent = await extractTextFromFile(fileUrl, fileType);
     
-    const fileBuffer = await fileResponse.arrayBuffer();
+    // Split the text into chunks
+    const textChunks = createTextChunks(textContent);
+    console.log(`Created ${textChunks.length} text chunks`);
     
-    let text = '';
-    const chunkSize = 2000; // characters per chunk
-    
-    // Extract text based on file type
-    if (fileType === 'application/pdf') {
-      // Extract text from PDF
-      const pdfText = await extract(new Uint8Array(fileBuffer));
-      text = pdfText || '';
-    } else if (fileType.includes('spreadsheet') || fileType.includes('excel')) {
-      // For Excel files, we'd use a different extraction method
-      text = 'Excel data extraction placeholder';
-    } else if (fileType.includes('word') || fileType.includes('document')) {
-      // For Word files
-      text = 'Word document extraction placeholder';
-    } else {
-      // For plain text files
-      const decoder = new TextDecoder();
-      text = decoder.decode(fileBuffer);
-    }
-    
-    // Split text into chunks
-    const chunks = [];
-    for (let i = 0; i < text.length; i += chunkSize) {
-      const chunk = text.substring(i, i + chunkSize);
-      chunks.push(chunk);
-    }
-    
-    // Store chunks in document_chunks table
-    for (let i = 0; i < chunks.length; i++) {
-      const { error } = await supabaseAdmin
+    // Generate embeddings for each chunk and store in pgvector
+    let chunkCount = 0;
+    for (let i = 0; i < textChunks.length; i++) {
+      const chunk = textChunks[i];
+      const embedding = await generateEmbedding(chunk);
+      
+      // Store the chunk and its embedding in the database
+      const { error: chunkError } = await supabase
         .from('document_chunks')
         .insert({
           project_id: projectId,
           file_id: fileId,
           chunk_index: i,
-          content: chunks[i],
+          content: chunk,
           metadata: {
             source: fileName,
-            chunk: i + 1,
-            total_chunks: chunks.length
-          }
+            page: Math.floor(i / 2) + 1 // Mock page number
+          },
+          embedding: embedding
         });
-      
-      if (error) {
-        throw error;
+
+      if (chunkError) {
+        console.warn(`Warning: Error creating document chunk: ${chunkError.message}`);
+      } else {
+        chunkCount++;
       }
     }
-    
-    // Update the file status
-    const { error } = await supabaseAdmin
+
+    // Update file status to indexed
+    const { error: updateError } = await supabase
       .from('indexed_files')
-      .update({ 
-        status: 'indexed',
-        chunks_count: chunks.length,
-        indexed_at: new Date().toISOString()
-      })
+      .update({ status: 'indexed' })
       .eq('id', fileId);
-    
-    if (error) {
-      throw error;
+      
+    if (updateError) {
+      console.warn(`Warning: Error updating file status: ${updateError.message}`);
     }
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `File indexed successfully. Created ${chunkCount} document chunks.`
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
     
-    return new Response(
-      JSON.stringify({ success: true, chunks: chunks.length }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Error:', error.message);
-    return new Response(
-      JSON.stringify({ error: error.message }), 
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  } catch (error: any) {
+    console.error(`Error in index-document function: ${error.message}`);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

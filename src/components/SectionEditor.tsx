@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Wand2, Save, FileText, FileSpreadsheet } from 'lucide-react'; // Added missing icons
+import { Wand2, Save, FileText, FileSpreadsheet } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -41,12 +41,19 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   const charsUsed = text.length;
   const isOverLimit = charsUsed > charLimit;
 
+  // Initialize text with initialText
+  useEffect(() => {
+    setText(initialText);
+  }, [initialText]);
+
+  // Call onTextChange only when text actually changes and when onTextChange exists
   useEffect(() => {
     if (onTextChange) {
       onTextChange(text);
     }
   }, [text, onTextChange]);
 
+  // Call onSourcesUpdate only when sources change and when onSourcesUpdate exists
   useEffect(() => {
     if (onSourcesUpdate) {
       onSourcesUpdate(sources);
