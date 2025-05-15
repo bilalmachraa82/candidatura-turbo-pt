@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
@@ -13,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { exportDocument } from '@/api/exportDocument';
 import { UploadFormProps } from '@/types/components';
 import { GenerationSource } from '@/types/api';
+import { Source } from '@/types/ai';
 
 interface UploadedFile {
   id: string;
@@ -37,7 +37,7 @@ const ProjectPage: React.FC = () => {
   const [project, setProject] = useState<{name: string, status: string} | null>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [sections, setSections] = useState<ProjectSection[]>([]);
-  const [sources, setSources] = useState<GenerationSource[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
   const [charsUsed, setCharsUsed] = useState(0);
   const [totalCharLimit, setTotalCharLimit] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
@@ -211,8 +211,17 @@ const ProjectPage: React.FC = () => {
     );
   };
 
+  // Convert GenerationSource to Source
   const handleSourcesUpdate = (sectionId: string, newSources: GenerationSource[]) => {
-    setSources(newSources);
+    // Convert from GenerationSource to Source type
+    const convertedSources: Source[] = newSources.map(source => ({
+      id: source.id,
+      name: source.name,
+      reference: source.reference,
+      type: source.type
+    }));
+    
+    setSources(convertedSources);
   };
 
   const handleExport = async (format: 'pdf' | 'docx') => {
