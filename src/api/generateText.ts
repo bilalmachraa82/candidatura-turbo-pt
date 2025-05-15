@@ -1,48 +1,57 @@
 
-import { AIModel } from '@/types/ai';
 import { GenerationResult } from '@/types/api';
+import { supabase } from '@/lib/supabase';
 
-const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL;
-const FLOWISE_API_KEY = import.meta.env.VITE_FLOWISE_API_KEY;
-
-/**
- * Generates text using the Flowise AI API with RAG capabilities
- */
 export async function generateText(
   projectId: string,
-  section: string,
-  charLimit: number, 
-  model: AIModel = 'gpt-4o'
+  sectionKey: string,
+  charLimit: number,
+  model: string = 'gpt-4o'
 ): Promise<GenerationResult> {
   try {
-    // Call the generate API endpoint
-    const response = await fetch('/api/generate', {
+    // 1. Get related documents for this project
+    const { data: documents, error: docsError } = await supabase
+      .from('indexed_files')
+      .select('id, file_name, file_type, file_url')
+      .eq('project_id', projectId)
+      .eq('status', 'indexed');
+    
+    if (docsError) throw docsError;
+    
+    // 2. Generate text using Flowise API
+    const flowiseUrl = process.env.FLOWISE_URL || 'https://flowise-api.example.com';
+    const flowiseApiKey = process.env.FLOWISE_API_KEY || '';
+    
+    const response = await fetch(`${flowiseUrl}/api/v1/prediction/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${flowiseApiKey}`
       },
       body: JSON.stringify({
         projectId,
-        sectionKey: section,
+        sectionKey,
         charLimit,
-        model
+        model,
+        documents: documents || []
       })
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API error: ${response.status}`);
-    }
-
-    const data = await response.json();
     
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error generating text with AI');
+    }
+    
+    const generationData = await response.json();
+    
+    // 3. Format and return the result
     return {
-      text: data.text || 'Texto gerado pela IA baseado nos documentos do projeto.',
-      charsUsed: data.text?.length || 250,
-      sources: data.sources || []
+      text: generationData.text || '',
+      charsUsed: generationData.text?.length || 0,
+      sources: generationData.sources || []
     };
   } catch (error: any) {
-    console.error('Error generating text:', error);
-    throw new Error(`Falha na geração de texto: ${error.message}`);
+    console.error('Generate text error:', error);
+    throw new Error(`Erro na geração de texto: ${error.message}`);
   }
 }

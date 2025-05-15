@@ -1,1 +1,8 @@
+
 project_id = "sapyhkbmrscensguyzbt"
+
+[functions.index-document]
+verify_jwt = true
+
+[functions.export-document]
+verify_jwt = true

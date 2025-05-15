@@ -1,59 +1,107 @@
 
 import { supabase } from '@/lib/supabase';
-import { IndexingResult } from '@/types/api';
 
-export async function indexDocument(projectId: string, file: File): Promise<IndexingResult> {
+interface IndexingResult {
+  success: boolean;
+  documentId?: string;
+  message: string;
+  file?: {
+    id: string;
+    name: string;
+    type: string;
+    url: string;
+  };
+}
+
+export async function indexDocument(
+  projectId: string,
+  file: File
+): Promise<IndexingResult> {
   try {
     // 1. Upload file to Supabase Storage
-    const fileName = `${Date.now()}_${file.name}`;
+    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const filePath = `${projectId}/${fileName}`;
-
+    
     const { data: uploadData, error: uploadError } = await supabase
       .storage
-      .from('documents')
+      .from('project_documents')
       .upload(filePath, file);
-
+    
     if (uploadError) {
+      console.error('Upload error:', uploadError);
       return {
         success: false,
         message: `Erro ao fazer upload: ${uploadError.message}`,
       };
     }
-
-    // Get public URL for the file
+    
+    // 2. Get public URL for the uploaded file
     const { data: urlData } = await supabase
       .storage
-      .from('documents')
+      .from('project_documents')
       .getPublicUrl(filePath);
-
-    const fileUrl = urlData?.publicUrl;
-
-    // 2. Record the file in the database
-    const { data: fileRecord, error: fileRecordError } = await supabase
+    
+    const fileUrl = urlData.publicUrl;
+    
+    // 3. Store file reference in indexed_files table
+    const { data: fileRecord, error: fileError } = await supabase
       .from('indexed_files')
       .insert({
         project_id: projectId,
         file_name: file.name,
         file_type: file.type,
-        file_url: fileUrl
+        file_url: fileUrl,
+        file_size: file.size,
+        status: 'pending_indexing'
       })
       .select()
       .single();
-
-    if (fileRecordError) {
+    
+    if (fileError) {
+      console.error('File record error:', fileError);
       return {
         success: false,
-        message: `Erro ao registar ficheiro: ${fileRecordError.message}`,
+        message: `Erro ao registar ficheiro: ${fileError.message}`,
       };
     }
-
-    // 3. For now, we'll skip the actual indexing process as it requires OpenAI API
-    // In a real app, we would submit this to an indexing queue or API endpoint
-
+    
+    // 4. Trigger indexing process via Edge Function
+    const { data: indexData, error: indexError } = await supabase
+      .functions
+      .invoke('index-document', {
+        body: { 
+          fileId: fileRecord.id,
+          projectId,
+          fileUrl,
+          fileName: file.name,
+          fileType: file.type
+        }
+      });
+    
+    if (indexError) {
+      console.error('Indexing error:', indexError);
+      // Update status to failed
+      await supabase
+        .from('indexed_files')
+        .update({ status: 'indexing_failed', error_message: indexError.message })
+        .eq('id', fileRecord.id);
+        
+      return {
+        success: false,
+        message: `Erro na indexação: ${indexError.message}`,
+      };
+    }
+    
+    // 5. Update file status to indexed
+    await supabase
+      .from('indexed_files')
+      .update({ status: 'indexed' })
+      .eq('id', fileRecord.id);
+    
     return {
       success: true,
-      message: 'Ficheiro indexado com sucesso',
       documentId: fileRecord.id,
+      message: 'Documento carregado e indexado com sucesso',
       file: {
         id: fileRecord.id,
         name: file.name,
@@ -61,11 +109,12 @@ export async function indexDocument(projectId: string, file: File): Promise<Inde
         url: fileUrl
       }
     };
+    
   } catch (error: any) {
-    console.error('Error in indexDocument:', error);
+    console.error('Indexing document error:', error);
     return {
       success: false,
-      message: `Erro ao processar ficheiro: ${error.message}`,
+      message: `Erro inesperado: ${error.message}`,
     };
   }
 }

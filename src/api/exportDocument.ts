@@ -1,41 +1,72 @@
 
-/**
- * Exports project data to PDF or DOCX format
- */
+import { ExportResult } from '@/types/api';
+import { supabase } from '@/lib/supabase';
+
 export async function exportDocument(
   projectId: string,
   format: 'pdf' | 'docx' = 'pdf',
-  language: 'pt' | 'en' = 'pt'
-) {
+  options?: {
+    language?: 'pt' | 'en',
+    includeSources?: boolean
+  }
+): Promise<ExportResult> {
   try {
-    const response = await fetch(`/api/export?projectId=${projectId}&format=${format}&language=${language}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Export failed with status: ${response.status}`);
-    }
-
-    // For a real implementation, we would handle the blob and trigger a download
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = `projeto-pt2030-${projectId}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
+    // 1. Get project data
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
     
+    if (projectError) throw projectError;
+    
+    // 2. Get all sections for this project
+    const { data: sections, error: sectionsError } = await supabase
+      .from('sections')
+      .select('*')
+      .eq('project_id', projectId);
+    
+    if (sectionsError) throw sectionsError;
+    
+    // 3. Get all files for this project
+    const { data: files, error: filesError } = await supabase
+      .from('indexed_files')
+      .select('*')
+      .eq('project_id', projectId);
+    
+    if (filesError) throw filesError;
+    
+    // 4. Generate document using Edge Function
+    const { data, error } = await supabase.functions.invoke('export-document', {
+      body: {
+        projectId,
+        format,
+        options,
+        projectName: project.title,
+        sections: sections || [],
+        files: files || []
+      }
+    });
+    
+    if (error) throw error;
+    
+    // 5. Return the export result
     return {
       success: true,
-      message: `Documento exportado com sucesso em formato ${format.toUpperCase()}`
+      url: data.url,
+      fileName: data.fileName,
+      format,
+      sections: sections?.length || 0,
+      attachments: files?.length || 0,
+      metadata: {
+        projectName: project.title,
+        exportDate: new Date().toISOString(),
+        pageCount: data.pageCount || 0,
+        language: options?.language || 'pt'
+      }
     };
   } catch (error: any) {
-    console.error('Error exporting document:', error);
-    throw new Error(`Failed to export document: ${error.message}`);
+    console.error('Export document error:', error);
+    throw new Error(`Erro na exportação: ${error.message}`);
   }
 }

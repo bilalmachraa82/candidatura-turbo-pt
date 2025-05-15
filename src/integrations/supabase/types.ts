@@ -57,6 +57,50 @@ export type Database = {
         }
         Relationships: []
       }
+      sections: {
+        Row: {
+          char_limit: number | null
+          content: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          project_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          char_limit?: number | null
+          content?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          project_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          char_limit?: number | null
+          content?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          project_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
