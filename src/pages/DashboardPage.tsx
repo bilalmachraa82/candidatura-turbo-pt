@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
+import AuthStatus from '@/components/AuthStatus';
 
 interface Project {
   id: string;
@@ -41,6 +42,7 @@ const DashboardPage: React.FC = () => {
 
     setIsLoading(true);
     try {
+      console.log("Fetching projects for user ID:", user.id);
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -99,20 +101,37 @@ const DashboardPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-pt-blue">Meus Projetos</h1>
             <p className="text-gray-600 mt-2">Gerencie as suas candidaturas PT2030</p>
-            <div className="mt-2">
+            <div className="mt-2 space-y-2">
               <SupabaseConnectionStatus showToast={true} />
+              <AuthStatus />
             </div>
           </div>
           <Button 
             onClick={() => setIsDialogOpen(true)}
             className="mt-4 md:mt-0 bg-pt-green text-white hover:bg-pt-blue"
+            disabled={!user}
           >
             <Plus className="mr-2 h-4 w-4" />
             Novo Projeto
           </Button>
         </div>
 
-        {isLoading ? (
+        {!user ? (
+          <div className="text-center p-12 bg-gray-50 rounded-lg border border-dashed">
+            <FileText className="h-12 w-12 mx-auto text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Autenticação necessária</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Precisa estar autenticado para ver e criar projetos.
+            </p>
+            <Link to="/login">
+              <Button 
+                className="mt-6 bg-pt-green text-white hover:bg-pt-blue"
+              >
+                Iniciar sessão
+              </Button>
+            </Link>
+          </div>
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="border rounded-lg h-48 animate-pulse bg-gray-100"></div>

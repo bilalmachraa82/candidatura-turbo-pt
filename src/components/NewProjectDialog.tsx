@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -33,6 +34,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth(); // Get the current authenticated user
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,18 +48,29 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
       return;
     }
 
+    // Check if user is authenticated
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Erro de autenticação",
+        description: "Necessita de iniciar sessão para criar um projeto."
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // Create the project in Supabase - note the use of title instead of name to match the schema
+      console.log("Creating project with user ID:", user.id);
+
+      // Create the project in Supabase - explicitly setting user_id
       const { data, error } = await supabase
         .from('projects')
         .insert({
           title: projectName,
           description: projectDescription,
-          // Ensure we're using values that match the schema exactly
-          status: 'draft'
-          // Removed type field since it's causing issues
+          status: 'draft',
+          user_id: user.id // Explicitly set the user_id to match RLS policy
         })
         .select()
         .single();
