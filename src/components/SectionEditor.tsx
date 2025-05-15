@@ -41,28 +41,30 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   const charsUsed = text.length;
   const isOverLimit = charsUsed > charLimit;
 
-  // Initialize text with initialText
+  // Initialize text with initialText only once when component mounts
+  // or when initialText changes
   useEffect(() => {
     setText(initialText);
   }, [initialText]);
 
-  // Call onTextChange only when text actually changes and when onTextChange exists
-  useEffect(() => {
+  // Call onTextChange only when text actually changes manually, not during initialization
+  // This is key to prevent the infinite loop
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    setText(newText);
+    
+    // Call the parent's onTextChange handler with the new text
     if (onTextChange) {
-      onTextChange(text);
+      onTextChange(newText);
     }
-  }, [text, onTextChange]);
+  };
 
-  // Call onSourcesUpdate only when sources change and when onSourcesUpdate exists
+  // Call onSourcesUpdate when sources change
   useEffect(() => {
     if (onSourcesUpdate) {
       onSourcesUpdate(sources);
     }
   }, [sources, onSourcesUpdate]);
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
-  };
 
   const handleGenerateText = async () => {
     if (!projectId || !sectionKey) {
@@ -80,6 +82,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       const result = await generateText(projectId, sectionKey, charLimit, selectedModel);
       setText(result.text);
       setSources(result.sources);
+      
+      // Call the parent's onTextChange handler with the generated text
+      if (onTextChange) {
+        onTextChange(result.text);
+      }
       
       toast({
         title: "Texto gerado com sucesso",

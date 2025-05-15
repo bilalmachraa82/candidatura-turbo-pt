@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
@@ -11,6 +12,7 @@ import SidebarPanel from '@/components/SidebarPanel';
 import { supabase } from '@/lib/supabase';
 import { exportDocument } from '@/api/exportDocument';
 import { UploadFormProps } from '@/types/components';
+import { GenerationSource } from '@/types/api';
 
 interface UploadedFile {
   id: string;
@@ -30,64 +32,12 @@ interface ProjectSection {
   charLimit: number;
 }
 
-interface Source {
-  id: string;
-  name: string;
-  reference: string;
-  type: 'excel' | 'pdf';
-}
-
-const mockSections: ProjectSection[] = [
-  {
-    id: '1',
-    projectId: '1',
-    key: 'analise_mercado',
-    title: 'Análise de Mercado',
-    description: 'Avaliação do mercado-alvo, tendências e oportunidades',
-    content: '',
-    charLimit: 2500
-  },
-  {
-    id: '2',
-    projectId: '1',
-    key: 'proposta_valor',
-    title: 'Proposta de Valor',
-    description: 'Definição do valor único oferecido ao mercado',
-    content: '',
-    charLimit: 1500
-  },
-  {
-    id: '3',
-    projectId: '1',
-    key: 'plano_financeiro',
-    title: 'Plano Financeiro',
-    description: 'Projeções financeiras e análise de viabilidade',
-    content: '',
-    charLimit: 3000
-  }
-];
-
-const mockSources: Source[] = [
-  {
-    id: '1',
-    name: 'Estudo de Viabilidade.xlsx',
-    reference: 'Excel: Sheet "Mercado" - B10:D25',
-    type: 'excel'
-  },
-  {
-    id: '2',
-    name: 'Memória Descritiva.pdf',
-    reference: 'PDF: Página 12, Parágrafo 3',
-    type: 'pdf'
-  }
-];
-
 const ProjectPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<{name: string, status: string} | null>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [sections, setSections] = useState<ProjectSection[]>([]);
-  const [sources, setSources] = useState<Source[]>([]);
+  const [sources, setSources] = useState<GenerationSource[]>([]);
   const [charsUsed, setCharsUsed] = useState(0);
   const [totalCharLimit, setTotalCharLimit] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
@@ -120,7 +70,7 @@ const ProjectPage: React.FC = () => {
         if (projectError) throw projectError;
         
         setProject({
-          name: projectData.name,
+          name: projectData.title, // Changed from name to title to match the DB schema
           status: projectData.status || 'draft'
         });
 
@@ -143,69 +93,84 @@ const ProjectPage: React.FC = () => {
             charLimit: s.char_limit || 2000
           })));
         } else {
-          // If no sections found, use default ones
-          setSections([
+          // If no sections found, create default ones in the DB and use them
+          const defaultSections = [
             {
-              id: '1',
               projectId: projectId,
               key: 'analise_mercado',
               title: 'Análise de Mercado',
               description: 'Avaliação do mercado-alvo, tendências e oportunidades',
               content: '',
-              charLimit: 2500
+              char_limit: 2500
             },
             {
-              id: '2',
               projectId: projectId,
               key: 'proposta_valor',
               title: 'Proposta de Valor',
               description: 'Definição do valor único oferecido ao mercado',
               content: '',
-              charLimit: 1500
+              char_limit: 1500
             },
             {
-              id: '3',
               projectId: projectId,
               key: 'plano_financeiro',
               title: 'Plano Financeiro',
               description: 'Projeções financeiras e análise de viabilidade',
               content: '',
-              charLimit: 3000
+              char_limit: 3000
             }
-          ]);
+          ];
+          
+          // Insert default sections into the database
+          for (const section of defaultSections) {
+            await supabase.from('sections').insert({
+              project_id: section.projectId,
+              key: section.key,
+              title: section.title,
+              description: section.description,
+              content: section.content,
+              char_limit: section.char_limit
+            });
+          }
+          
+          // Fetch the newly created sections to get their IDs
+          const { data: newSectionsData } = await supabase
+            .from('sections')
+            .select('*')
+            .eq('project_id', projectId);
+            
+          if (newSectionsData) {
+            setSections(newSectionsData.map(s => ({
+              id: s.id,
+              projectId: s.project_id,
+              key: s.key,
+              title: s.title,
+              description: s.description || '',
+              content: s.content || '',
+              charLimit: s.char_limit || 2000
+            })));
+          }
         }
 
         // Fetch uploaded files
-        const { data: filesData, error: filesError } = await supabase
-          .from('indexed_files')
-          .select('*')
-          .eq('project_id', projectId);
+        try {
+          const { data: filesData, error: filesError } = await supabase
+            .from('indexed_files')
+            .select('*')
+            .eq('project_id', projectId);
 
-        if (!filesError && filesData) {
-          setFiles(filesData.map(f => ({
-            id: f.id,
-            name: f.file_name,
-            url: f.file_url,
-            type: f.file_type,
-            uploadDate: f.created_at
-          })));
-        }
-
-        // Fetch sources (for now we'll use mock data)
-        setSources([
-          {
-            id: '1',
-            name: 'Estudo de Viabilidade.xlsx',
-            reference: 'Excel: Sheet "Mercado" - B10:D25',
-            type: 'excel'
-          },
-          {
-            id: '2',
-            name: 'Memória Descritiva.pdf',
-            reference: 'PDF: Página 12, Parágrafo 3',
-            type: 'pdf'
+          if (!filesError && filesData) {
+            setFiles(filesData.map(f => ({
+              id: f.id,
+              name: f.file_name,
+              url: f.file_url,
+              type: f.file_type,
+              uploadDate: f.created_at
+            })));
           }
-        ]);
+        } catch (error) {
+          console.warn("Could not load indexed files, table might be empty:", error);
+        }
 
       } catch (error) {
         console.error("Error fetching project:", error);
@@ -244,6 +209,10 @@ const ProjectPage: React.FC = () => {
           : section
       )
     );
+  };
+
+  const handleSourcesUpdate = (sectionId: string, newSources: GenerationSource[]) => {
+    setSources(newSources);
   };
 
   const handleExport = async (format: 'pdf' | 'docx') => {
@@ -345,6 +314,7 @@ const ProjectPage: React.FC = () => {
                     initialText={section.content}
                     charLimit={section.charLimit}
                     onTextChange={(text) => handleSectionTextChange(section.id, text)}
+                    onSourcesUpdate={(newSources) => handleSourcesUpdate(section.id, newSources)}
                   />
                 ))}
               </TabsContent>
@@ -389,7 +359,12 @@ const ProjectPage: React.FC = () => {
                                   </p>
                                 </div>
                               </div>
-                              <Button variant="ghost" size="sm" className="text-pt-blue">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-pt-blue"
+                                onClick={() => window.open(file.url, '_blank')}
+                              >
                                 Visualizar
                               </Button>
                             </li>
