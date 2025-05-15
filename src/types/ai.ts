@@ -5,7 +5,7 @@ export interface Source {
   id: string;
   name: string;
   reference: string;
-  type: 'pdf' | 'excel';
+  type: 'pdf' | 'excel' | 'document';
 }
 
 export interface GenerationResult {
