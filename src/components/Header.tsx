@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { LogOut, LogIn, Menu, X } from 'lucide-react';
 import LogoPT2030 from './LogoPT2030';
 import { useAuth } from '@/context/AuthContext';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile'; // Fixed import name
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const { isMobile } = useMobile();
+  const isMobile = useIsMobile(); // Fixed variable name
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -28,7 +28,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between h-16 items-center">
           <div className="flex-shrink-0">
             <Link to="/">
-              <LogoPT2030 width={120} />
+              <LogoPT2030 />
             </Link>
           </div>
           

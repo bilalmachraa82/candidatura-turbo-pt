@@ -35,7 +35,7 @@ const ForgotPasswordPage = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-6">
-            <LogoPT2030 width={200} />
+            <LogoPT2030 />
           </div>
           <CardTitle className="text-2xl font-bold text-pt-blue">
             Recuperar Palavra-passe
