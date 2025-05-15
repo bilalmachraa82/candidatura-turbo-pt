@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Wand2, Save, FileText, FileSpreadsheet } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,12 +59,21 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     }
   };
 
+  // Use the useCallback hook to memoize this function
+  // and prevent it from being recreated on every render
+  const updateSources = useCallback((newSources: GenerationSource[]) => {
+    if (onSourcesUpdate) {
+      onSourcesUpdate(newSources);
+    }
+  }, [onSourcesUpdate]);
+
   // Call onSourcesUpdate when sources change
   useEffect(() => {
-    if (onSourcesUpdate) {
-      onSourcesUpdate(sources);
+    // Only update the parent if there are sources to update with
+    if (sources.length > 0) {
+      updateSources(sources);
     }
-  }, [sources, onSourcesUpdate]);
+  }, [sources, updateSources]);
 
   const handleGenerateText = async () => {
     if (!projectId || !sectionKey) {

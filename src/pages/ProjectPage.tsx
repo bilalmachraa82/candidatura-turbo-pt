@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -211,18 +212,28 @@ const ProjectPage: React.FC = () => {
     );
   };
 
-  // Convert GenerationSource to Source
-  const handleSourcesUpdate = (sectionId: string, newSources: GenerationSource[]) => {
+  // Convert GenerationSource to Source - use useCallback to prevent recreation on every render
+  const handleSourcesUpdate = useCallback((sectionId: string, newSources: GenerationSource[]) => {
     // Convert from GenerationSource to Source type
     const convertedSources: Source[] = newSources.map(source => ({
-      id: source.id,
+      id: source.id || '',
       name: source.name,
       reference: source.reference,
       type: source.type
     }));
     
-    setSources(convertedSources);
-  };
+    // Only update if sources are different to avoid infinite loops
+    setSources(prevSources => {
+      // Simple string comparison to check if arrays are equivalent
+      const prevSourcesString = JSON.stringify(prevSources);
+      const newSourcesString = JSON.stringify(convertedSources);
+      
+      if (prevSourcesString !== newSourcesString) {
+        return convertedSources;
+      }
+      return prevSources;
+    });
+  }, []);
 
   const handleExport = async (format: 'pdf' | 'docx') => {
     if (!projectId) return;
