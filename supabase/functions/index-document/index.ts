@@ -1,29 +1,30 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.1";
+import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.2.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Mock function to extract text from a file
+// Extract text from pdf file (mock function for now)
 async function extractTextFromFile(fileUrl: string, fileType: string): Promise<string> {
-  console.log(`[Mock] Extracting text from ${fileType} file at URL: ${fileUrl}`);
+  console.log(`Extracting text from ${fileType} file at URL: ${fileUrl}`);
   
-  // Mock extraction based on file type
+  // In a real implementation, you would download the file and extract the text
+  // using appropriate libraries based on the file type
+  
   if (fileType.includes('pdf')) {
-    return `This is extracted text from a PDF file at ${fileUrl}. 
-    In a real implementation, we would download the file and extract actual text content.
-    This would be processed page by page and paragraph by paragraph.`;
+    return `Este é um texto extraído de um arquivo PDF em ${fileUrl}.
+    Em uma implementação real, nós extrairíamos o conteúdo textual real do PDF.`;
   } 
   else if (fileType.includes('excel') || fileType.includes('spreadsheet') || fileType.includes('xlsx')) {
-    return `This is extracted text from an Excel file at ${fileUrl}.
-    In a real implementation, we would extract values from cells, sheets, and named ranges.
-    Data would be organized by worksheets and structured in a meaningful way.`;
+    return `Este é um texto extraído de uma planilha Excel em ${fileUrl}.
+    Em uma implementação real, nós extrairíamos valores das células, planilhas e intervalos nomeados.`;
   }
   else {
-    return `Text extracted from ${fileUrl}. This is a generic extraction for file type: ${fileType}.`;
+    return `Texto extraído de ${fileUrl}. Esta é uma extração genérica para o tipo de arquivo: ${fileType}.`;
   }
 }
 
@@ -45,16 +46,39 @@ function createTextChunks(text: string, chunkSize: number = 1000): string[] {
   return chunks;
 }
 
-// Function to generate embeddings (mock implementation)
-async function generateEmbedding(text: string): Promise<number[]> {
-  console.log(`[Mock] Generating embedding for text: ${text.substring(0, 50)}...`);
-  
-  // Create a mock embedding vector of 1536 dimensions
-  return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
+// Function to generate embeddings using OpenAI
+async function generateEmbeddings(text: string): Promise<number[]> {
+  try {
+    const openAiKey = Deno.env.get("OPENAI_API_KEY");
+    
+    if (!openAiKey) {
+      console.log("OpenAI API Key not found, using mock embeddings");
+      // If no API key, return mock embeddings (1536 dimensions)
+      return Array(1536).fill(0).map(() => Math.random() * 2 - 1);
+    }
+    
+    const configuration = new Configuration({
+      apiKey: openAiKey,
+    });
+    
+    const openai = new OpenAIApi(configuration);
+    
+    const response = await openai.createEmbedding({
+      model: "text-embedding-3-small",
+      input: text.replace(/\n/g, " "),
+    });
+    
+    const embedding = response.data.data[0].embedding;
+    return embedding;
+  } catch (error) {
+    console.error("Error generating embeddings:", error);
+    // Return mock embeddings in case of error
+    return Array(1536).fill(0).map(() => Math.random() * 2 - 1);
+  }
 }
 
 serve(async (req: Request) => {
-  // Handle OPTIONS request for CORS
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders, status: 204 });
   }
@@ -95,7 +119,7 @@ serve(async (req: Request) => {
     let chunkCount = 0;
     for (let i = 0; i < textChunks.length; i++) {
       const chunk = textChunks[i];
-      const embedding = await generateEmbedding(chunk);
+      const embedding = await generateEmbeddings(chunk);
       
       // Store the chunk and its embedding in the database
       const { error: chunkError } = await supabase

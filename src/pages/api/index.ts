@@ -1,6 +1,4 @@
-
 import { supabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
 
 // Simplified request/response types
 type Request = {

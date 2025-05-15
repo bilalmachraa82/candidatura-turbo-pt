@@ -1,192 +1,187 @@
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { Session, User, AuthError } from '@supabase/supabase-js';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error: AuthError | null }>;
+  signUp: (email: string, password: string) => Promise<{ success: boolean; error: AuthError | null }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error: AuthError | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        console.log('Auth state changed:', event);
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        
-        // Handle events like password recovery and email confirmation
-        if (event === 'PASSWORD_RECOVERY') {
-          navigate('/reset-password');
-        }
-        
-        if (event === 'SIGNED_IN') {
-          toast({
-            title: "Sessão iniciada",
-            description: "Autenticação realizada com sucesso"
-          });
-        }
-        
-        if (event === 'SIGNED_OUT') {
-          toast({
-            title: "Sessão terminada",
-            description: "Terminou a sua sessão com sucesso"
-          });
-          navigate('/login');
-        }
-      }
-    );
-
-    // THEN check for existing session
-    const checkSession = async () => {
+    async function loadSession() {
+      setIsLoading(true);
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
         
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-      } catch (error) {
-        console.error('Error checking session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkSession();
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
 
-    // Cleanup
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate, toast]);
+        // Set up auth state listener
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+          (event, newSession) => {
+            setSession(newSession);
+            setUser(newSession?.user ?? null);
+          }
+        );
+
+        return () => {
+          authListener.subscription.unsubscribe();
+        };
+      } catch (error: any) {
+        console.error('Error loading auth session:', error.message);
+        toast({
+          variant: "destructive",
+          title: "Erro de autenticação",
+          description: "Não foi possível carregar a sessão."
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadSession();
+  }, [toast]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Erro ao entrar",
+          description: error.message
+        });
+        return { success: false, error };
+      }
+
+      toast({
+        title: "Login bem-sucedido",
+        description: "Bem-vindo de volta!"
+      });
       
       navigate('/');
+      return { success: true, error: null };
     } catch (error: any) {
-      console.error('Error signing in:', error);
+      console.error('Error during sign in:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao iniciar sessão",
-        description: error.message || "Verifique as suas credenciais e tente novamente"
+        title: "Erro ao entrar",
+        description: error.message
       });
-      throw error;
+      return { success: false, error };
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
       });
 
-      if (error) throw error;
-      
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Erro ao registrar",
+          description: error.message
+        });
+        return { success: false, error };
+      }
+
       toast({
-        title: "Conta criada",
-        description: "Foi enviado um email de confirmação. Por favor verifique a sua caixa de entrada."
+        title: "Registro bem-sucedido",
+        description: "Verifique seu email para confirmar o cadastro."
       });
-      
-      navigate('/login');
+      return { success: true, error: null };
     } catch (error: any) {
-      console.error('Error signing up:', error);
+      console.error('Error during sign up:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao criar conta",
-        description: error.message || "Ocorreu um erro ao criar a conta"
+        title: "Erro ao registrar",
+        description: error.message
       });
-      throw error;
+      return { success: false, error };
     }
   };
 
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error: any) {
-      console.error('Error signing out:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao terminar sessão",
-        description: error.message || "Ocorreu um erro ao terminar a sessão"
-      });
-      throw error;
-    }
+    await supabase.auth.signOut();
+    navigate('/login');
   };
 
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/atualizar-senha`,
       });
-      
-      if (error) throw error;
-      
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Erro ao redefinir senha",
+          description: error.message
+        });
+        return { success: false, error };
+      }
+
       toast({
-        title: "Email enviado",
-        description: "Foi enviado um email com instruções para redefinir a sua palavra-passe"
+        title: "Redefinição de senha",
+        description: "Verifique seu email para redefinir sua senha."
       });
+      return { success: true, error: null };
     } catch (error: any) {
-      console.error('Error resetting password:', error);
+      console.error('Error during password reset:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao redefinir palavra-passe",
-        description: error.message || "Ocorreu um erro ao solicitar a redefinição"
+        title: "Erro ao redefinir senha",
+        description: error.message
       });
-      throw error;
+      return { success: false, error };
     }
   };
 
-  return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      loading,
-      signIn,
-      signUp,
-      signOut,
-      resetPassword
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  const value = {
+    user,
+    session,
+    isLoading,
+    isAuthenticated: !!user,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
+  };
 
-export const useAuth = () => {
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
