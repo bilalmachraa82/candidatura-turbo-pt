@@ -1,17 +1,10 @@
-
 import React from 'react';
 import { AlertCircle, CheckCircle, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ModelSelector from './ModelSelector';
-
-interface Source {
-  id: string;
-  name: string;
-  reference: string;
-  type: 'excel' | 'pdf';
-}
+import { Source } from '@/types/ai';
 
 interface SidebarPanelProps {
   projectId: string;
@@ -67,7 +60,7 @@ const SidebarPanel: React.FC<SidebarPanelProps> = ({
     }
   };
   
-  const getSourceIcon = (type: 'excel' | 'pdf') => {
+  const getSourceIcon = (type: 'pdf' | 'excel' | 'document') => {
     return <FileText className="h-4 w-4 mr-2" />;
   };
 
