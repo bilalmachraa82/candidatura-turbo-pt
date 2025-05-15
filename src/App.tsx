@@ -1,91 +1,46 @@
 
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { AIProvider } from "@/context/AIContext";
-import { checkEnvironmentVariables } from "@/utils/envDebugger";
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { AuthProvider } from '@/context/AuthContext';
+import { AIProvider } from '@/context/AIContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import LoginPage from '@/pages/LoginPage';
+import RegisterPage from '@/pages/RegisterPage';
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import DashboardPage from '@/pages/DashboardPage';
+import ProjectPage from '@/pages/ProjectPage';
+import ContactPage from '@/pages/ContactPage';
+import NotFound from '@/pages/NotFound';
+import Index from '@/pages/Index';
 
-// Debug environment variables in development
-if (import.meta.env.DEV) {
-  checkEnvironmentVariables();
-}
-
-// Pages
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import DashboardPage from "./pages/DashboardPage";
-import ProjectPage from "./pages/ProjectPage";
-import ContactPage from "./pages/ContactPage";
-import NotFound from "./pages/NotFound";
-
-const queryClient = new QueryClient();
-
-// Protected route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return <div className="flex h-screen items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin h-10 w-10 border-4 border-pt-green border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p className="text-pt-blue font-semibold">A carregar...</p>
-      </div>
-    </div>;
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-const App = () => {
+function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <AIProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/contactos" element={<ContactPage />} />
-                
-                {/* Protected Routes */}
-                <Route 
-                  path="/" 
-                  element={
-                    <ProtectedRoute>
-                      <DashboardPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/projetos/:projectId" 
-                  element={
-                    <ProtectedRoute>
-                      <ProjectPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                {/* 404 Route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </TooltipProvider>
-          </AIProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <Router>
+      <AuthProvider>
+        <AIProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/projetos/:projectId" element={
+              <ProtectedRoute>
+                <ProjectPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/contactos" element={<ContactPage />} />
+            <Route path="/index" element={<Index />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </AIProvider>
+      </AuthProvider>
+    </Router>
   );
-};
+}
 
 export default App;

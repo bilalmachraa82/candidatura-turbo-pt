@@ -1,26 +1,31 @@
 
 import React from 'react';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 
 const AuthStatus: React.FC = () => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
-    return <div className="text-sm text-gray-500">Verificando autenticação...</div>;
-  }
-  
-  if (!user) {
     return (
-      <div className="text-sm text-red-500 font-medium">
-        Não autenticado
-      </div>
+      <Badge variant="outline" className="bg-gray-100">
+        Verificando autenticação...
+      </Badge>
     );
   }
-  
+
+  if (user) {
+    return (
+      <Badge className="bg-green-500 text-white">
+        Autenticado como {user.email}
+      </Badge>
+    );
+  }
+
   return (
-    <div className="text-sm text-green-600 font-medium">
-      Autenticado como {user.email}
-    </div>
+    <Badge variant="destructive">
+      Não autenticado
+    </Badge>
   );
 };
 

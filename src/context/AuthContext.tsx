@@ -1,23 +1,23 @@
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { Session, User } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
-import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | Error | null, emailNotConfirmed?: boolean }>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: AuthError | Error | null }>;
-};
+  resetPassword: (email: string) => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,138 +25,123 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up the auth state listener first to avoid missing auth events
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        console.log("Auth state changed:", event, currentSession);
+      (event, newSession) => {
+        console.log('Auth state changed:', event);
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         
-        // Handle specific auth events
+        // Handle events like password recovery and email confirmation
+        if (event === 'PASSWORD_RECOVERY') {
+          navigate('/reset-password');
+        }
+        
         if (event === 'SIGNED_IN') {
           toast({
-            title: "Login bem sucedido",
-            description: "Bem-vindo à plataforma PT2030!",
+            title: "Sessão iniciada",
+            description: "Autenticação realizada com sucesso"
           });
-          navigate('/');
-        } else if (event === 'SIGNED_OUT') {
+        }
+        
+        if (event === 'SIGNED_OUT') {
           toast({
             title: "Sessão terminada",
-            description: "A sua sessão foi terminada com sucesso.",
+            description: "Terminou a sua sessão com sucesso"
           });
           navigate('/login');
-        } else if (event === 'USER_UPDATED') {
-          toast({
-            title: "Utilizador atualizado",
-            description: "Os seus dados foram atualizados com sucesso.",
-          });
+        }
+      }
+    );
+
+    // THEN check for existing session
+    const checkSession = async () => {
+      try {
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
         }
         
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
         setLoading(false);
       }
-    );
+    };
+    
+    checkSession();
 
-    // Check for initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log("Initial session check:", initialSession ? "Found session" : "No session");
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
-      
-      // If user has a session, navigate to dashboard
-      if (initialSession?.user) {
-        navigate('/');
-      }
-    });
-
+    // Cleanup
     return () => {
       subscription.unsubscribe();
     };
   }, [navigate, toast]);
 
-  const signUp = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({ 
-        email, 
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
-        }
       });
+
+      if (error) throw error;
       
-      if (!error) {
-        toast({
-          title: "Conta criada com sucesso",
-          description: "Por favor verifique o seu email para confirmar a sua conta.",
-        });
-      }
-      
-      return { error };
-    } catch (error) {
-      console.error('Erro ao registar:', error);
-      return { error: error as Error };
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error signing in:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao iniciar sessão",
+        description: error.message || "Verifique as suas credenciais e tente novamente"
+      });
+      throw error;
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
       
-      if (error) {
-        // Type guard for AuthError
-        const isAuthError = (err: Error | AuthError): err is AuthError => 
-          'status' in err;
-        
-        if (isAuthError(error) && error.message?.includes('Email not confirmed')) {
-          console.log("Email not confirmed error detected");
-          
-          // Automatically send another confirmation email
-          const { error: resendError } = await supabase.auth.resend({
-            type: 'signup',
-            email,
-            options: {
-              emailRedirectTo: `${window.location.origin}/login`,
-            }
-          });
-          
-          if (!resendError) {
-            toast({
-              title: "Email de confirmação enviado",
-              description: "Um novo email de confirmação foi enviado. Por favor verifique a sua caixa de entrada.",
-            });
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Erro ao enviar email",
-              description: resendError.message || "Não foi possível enviar o email. Tente novamente mais tarde."
-            });
-          }
-          
-          return { error, emailNotConfirmed: true };
-        }
-        
-        return { error };
-      }
+      toast({
+        title: "Conta criada",
+        description: "Foi enviado um email de confirmação. Por favor verifique a sua caixa de entrada."
+      });
       
-      // Success is handled by the onAuthStateChange listener
-      return { error: null };
-    } catch (error) {
-      console.error('Erro ao fazer login:', error);
-      return { error: error as Error };
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Error signing up:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao criar conta",
+        description: error.message || "Ocorreu um erro ao criar a conta"
+      });
+      throw error;
     }
   };
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
-      // Redirect is handled by onAuthStateChange listener
-    } catch (error) {
-      console.error('Erro ao terminar sessão:', error);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error signing out:', error);
       toast({
         variant: "destructive",
         title: "Erro ao terminar sessão",
-        description: "Ocorreu um erro ao terminar a sua sessão.",
+        description: error.message || "Ocorreu um erro ao terminar a sessão"
       });
+      throw error;
     }
   };
 
@@ -166,32 +151,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       
-      if (!error) {
-        toast({
-          title: "Email enviado",
-          description: "Verifique o seu email para redefinir a sua password.",
-        });
-      }
+      if (error) throw error;
       
-      return { error };
-    } catch (error) {
-      console.error('Erro ao redefinir password:', error);
-      return { error: error as Error };
+      toast({
+        title: "Email enviado",
+        description: "Foi enviado um email com instruções para redefinir a sua palavra-passe"
+      });
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao redefinir palavra-passe",
+        description: error.message || "Ocorreu um erro ao solicitar a redefinição"
+      });
+      throw error;
     }
   };
 
-  const value = {
-    user,
-    session,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-    resetPassword,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+  return (
+    <AuthContext.Provider value={{
+      user,
+      session,
+      loading,
+      signIn,
+      signUp,
+      signOut,
+      resetPassword
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
