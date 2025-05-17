@@ -1,9 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Session, User, AuthError } from '@supabase/supabase-js';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -22,13 +21,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     async function loadSession() {
       setIsLoading(true);
       try {
+        // Set up auth state listener FIRST
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          (event, newSession) => {
+            setSession(newSession);
+            setUser(newSession?.user ?? null);
+          }
+        );
+
+        // THEN check for existing session
         const { data, error } = await supabase.auth.getSession();
         
         if (error) throw error;
@@ -36,16 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(data.session);
         setUser(data.session?.user ?? null);
 
-        // Set up auth state listener
-        const { data: authListener } = supabase.auth.onAuthStateChange(
-          (event, newSession) => {
-            setSession(newSession);
-            setUser(newSession?.user ?? null);
-          }
-        );
-
         return () => {
-          authListener.subscription.unsubscribe();
+          subscription.unsubscribe();
         };
       } catch (error: any) {
         console.error('Error loading auth session:', error.message);
@@ -83,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Bem-vindo de volta!"
       });
       
-      navigate('/');
       return { success: true, error: null };
     } catch (error: any) {
       console.error('Error during sign in:', error);
@@ -130,7 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
   };
 
   const resetPassword = async (email: string) => {

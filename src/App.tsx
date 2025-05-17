@@ -11,7 +11,6 @@ import DashboardPage from '@/pages/DashboardPage';
 import ProjectPage from '@/pages/ProjectPage';
 import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
-import Index from '@/pages/Index';
 
 function App() {
   return (
@@ -33,7 +32,6 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/contactos" element={<ContactPage />} />
-            <Route path="/index" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
