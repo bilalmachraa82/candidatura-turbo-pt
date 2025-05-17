@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User, AuthError } from '@supabase/supabase-js';
@@ -25,38 +24,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (isInitialized) return;
-    
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      try {
-        console.log('Carregando sessão de autenticação...');
-        
-        // Primeiro configurar o listener para mudanças de estado de autenticação
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (event, newSession) => {
-            console.log('Estado de autenticação alterado:', event);
-            
-            if (event === 'SIGNED_IN') {
-              toast({
-                title: "Autenticação bem-sucedida",
-                description: "Bem-vindo de volta!"
-              });
-            }
-            
-            if (event === 'SIGNED_OUT') {
-              toast({
-                title: "Sessão terminada",
-                description: "Sessão terminada com sucesso."
-              });
-            }
-            
-            setSession(newSession);
-            setUser(newSession?.user ?? null);
-          }
-        );
+    let subscription: { unsubscribe: () => void } | null = null;
 
-        // Depois verificar a sessão existente
+    const initializeAuth = async () => {
+      if (isInitialized) return;
+      
+      setIsLoading(true);
+      
+      try {
+        console.log('Inicializando autenticação...');
+        
+        // First set up the auth state change listener
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+          console.log('Estado de autenticação alterado:', event);
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          
+          if (event === 'SIGNED_IN') {
+            console.log('Usuário autenticado com sucesso:', newSession?.user?.email);
+          }
+          
+          if (event === 'SIGNED_OUT') {
+            console.log('Usuário desconectado');
+          }
+        });
+        
+        subscription = authListener.subscription;
+        
+        // Then check for an existing session
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -64,21 +59,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
         
+        console.log('Sessão existente:', data.session ? 'Sim' : 'Não');
         setSession(data.session);
         setUser(data.session?.user ?? null);
         
-        console.log('Estado inicial da sessão:', 
-          data.session ? 'Utilizador autenticado' : 'Sem sessão');
-
-        return () => {
-          subscription.unsubscribe();
-        };
       } catch (error: any) {
-        console.error('Erro ao carregar sessão de autenticação:', error);
+        console.error('Erro na inicialização da autenticação:', error);
         toast({
           variant: "destructive",
           title: "Erro de autenticação",
-          description: "Não foi possível carregar a sessão."
+          description: "Não foi possível inicializar a autenticação."
         });
       } finally {
         setIsLoading(false);
@@ -87,6 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initializeAuth();
+
+    return () => {
+      // Clean up subscription when component unmounts
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [toast, isInitialized]);
 
   const signIn = async (email: string, password: string) => {
@@ -108,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error };
       }
 
-      console.log('Login bem-sucedido');
+      console.log('Login bem-sucedido para:', data.user?.email);
       
       return { success: true, error: null };
     } catch (error: any) {

@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -10,6 +10,11 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    console.log('ProtectedRoute - isLoading:', isLoading, 'user:', !!user);
+  }, [isLoading, user]);
 
   // Mostrar um indicador de carregamento enquanto verificamos o estado de autenticação
   if (isLoading) {
@@ -23,7 +28,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Redirecionar para a página de login se o utilizador não estiver autenticado
   if (!user) {
     console.log("Utilizador não autenticado, redirecionando para login");
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   // Renderizar os componentes filhos se o utilizador estiver autenticado

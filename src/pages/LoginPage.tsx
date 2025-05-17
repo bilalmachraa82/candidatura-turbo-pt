@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,14 +17,20 @@ const LoginPage = () => {
   const { signIn, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Track navigation attempts to avoid infinite loops
+  const [hasNavigated, setHasNavigated] = useState(false);
   
   // Redirecionar se já estiver autenticado
   useEffect(() => {
-    if (user) {
+    if (user && !hasNavigated) {
       console.log('Utilizador já autenticado, redirecionando para a página inicial');
-      navigate('/', { replace: true });
+      setHasNavigated(true);
+      const from = location.state?.from || '/';
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location, hasNavigated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +51,7 @@ const LoginPage = () => {
       if (success) {
         console.log('Login bem-sucedido, redirecionando...');
         // Não precisamos redirecionar aqui pois o useEffect fará isso automaticamente
+        // apenas se o user for atualizado
       } else {
         console.error('Falha no login:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
