@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/AuthContext';
 import { AIProvider } from '@/context/AIContext';
@@ -36,7 +36,7 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Rota de fallback para páginas não encontradas */}
+            {/* Redirect for root path - added to avoid direct URL issues */}
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,21 +20,25 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Track navigation attempts to avoid infinite loops
-  const [hasNavigated, setHasNavigated] = useState(false);
+  // Use a ref to track navigation attempts to avoid infinite redirects 
+  const navigationAttempted = React.useRef(false);
   
   // Redirecionar se já estiver autenticado
   useEffect(() => {
-    if (user && !hasNavigated) {
+    if (user && !authLoading && !navigationAttempted.current) {
       console.log('Utilizador já autenticado, redirecionando para a página inicial');
-      setHasNavigated(true);
+      navigationAttempted.current = true;
+      
+      // Get the redirect path from location state or default to '/'
       const from = location.state?.from || '/';
       navigate(from, { replace: true });
     }
-  }, [user, navigate, location, hasNavigated]);
+  }, [user, navigate, location, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
     setIsSubmitting(true);
     setLoginError(null);
 
@@ -50,8 +55,7 @@ const LoginPage = () => {
       
       if (success) {
         console.log('Login bem-sucedido, redirecionando...');
-        // Não precisamos redirecionar aqui pois o useEffect fará isso automaticamente
-        // apenas se o user for atualizado
+        // No need to redirect here as the useEffect will handle it
       } else {
         console.error('Falha no login:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
@@ -75,6 +79,7 @@ const LoginPage = () => {
     );
   }
 
+  // Only render the login form if not authenticated
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-gray-50">
       <Card className="w-full max-w-md">

@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
 
     const initializeAuth = async () => {
@@ -34,52 +35,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('Inicializando autenticação...');
         
-        // First set up the auth state change listener
+        // Subscribe to auth events first (before fetching session)
         const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+          if (!mounted) return;
+          
           console.log('Estado de autenticação alterado:', event);
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
           
           if (event === 'SIGNED_IN') {
             console.log('Usuário autenticado com sucesso:', newSession?.user?.email);
-          }
-          
-          if (event === 'SIGNED_OUT') {
+          } else if (event === 'SIGNED_OUT') {
             console.log('Usuário desconectado');
           }
+          
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
         });
         
-        subscription = authListener.subscription;
-        
-        // Then check for an existing session
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Erro ao buscar sessão:', error.message);
-          throw error;
+        if (mounted) {
+          subscription = authListener.subscription;
         }
         
-        console.log('Sessão existente:', data.session ? 'Sim' : 'Não');
-        setSession(data.session);
-        setUser(data.session?.user ?? null);
-        
+        // Then check for an existing session
+        if (mounted) {
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('Erro ao buscar sessão:', error.message);
+            throw error;
+          }
+          
+          console.log('Sessão existente:', data.session ? 'Sim' : 'Não');
+          
+          if (mounted) {
+            setSession(data.session);
+            setUser(data.session?.user ?? null);
+          }
+        }
       } catch (error: any) {
         console.error('Erro na inicialização da autenticação:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro de autenticação",
-          description: "Não foi possível inicializar a autenticação."
-        });
+        if (mounted) {
+          toast({
+            variant: "destructive",
+            title: "Erro de autenticação",
+            description: "Não foi possível inicializar a autenticação."
+          });
+        }
       } finally {
-        setIsLoading(false);
-        setIsInitialized(true);
+        if (mounted) {
+          setIsLoading(false);
+          setIsInitialized(true);
+        }
       }
     };
 
     initializeAuth();
 
     return () => {
-      // Clean up subscription when component unmounts
+      mounted = false;
       if (subscription) {
         subscription.unsubscribe();
       }
@@ -89,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Tentando login com email:', email);
+      setIsLoading(true);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -116,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Erro inesperado ao autenticar. Verifique sua conexão com a internet."
       });
       return { success: false, error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
