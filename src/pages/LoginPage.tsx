@@ -19,10 +19,11 @@ const LoginPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Redirect if already authenticated
+  // Redirecionar se já estiver autenticado
   useEffect(() => {
     if (user) {
-      navigate('/');
+      console.log('Utilizador já autenticado, redirecionando para a página inicial');
+      navigate('/', { replace: true });
     }
   }, [user, navigate]);
 
@@ -32,7 +33,7 @@ const LoginPage = () => {
     setLoginError(null);
 
     try {
-      console.log('Attempting login with:', { email });
+      console.log('Tentando login com:', { email });
       
       if (!email || !password) {
         setLoginError('Email e senha são obrigatórios');
@@ -43,14 +44,14 @@ const LoginPage = () => {
       const { success, error } = await signIn(email, password);
       
       if (success) {
-        console.log('Login successful, redirecting...');
-        navigate('/');
+        console.log('Login bem-sucedido, redirecionando...');
+        // Não precisamos redirecionar aqui pois o useEffect fará isso automaticamente
       } else {
-        console.error('Login failed:', error);
+        console.error('Falha no login:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
       }
     } catch (error: any) {
-      console.error('Exception during login:', error);
+      console.error('Exceção durante login:', error);
       setLoginError('Erro ao conectar ao serviço. Verifique sua conexão com a internet.');
     } finally {
       setIsSubmitting(false);
@@ -60,7 +61,10 @@ const LoginPage = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pt-green"></div>
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-pt-green mb-4" />
+          <p className="text-gray-600">A verificar sessão...</p>
+        </div>
       </div>
     );
   }

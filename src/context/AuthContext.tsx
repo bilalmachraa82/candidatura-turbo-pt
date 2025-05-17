@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User, AuthError } from '@supabase/supabase-js';
@@ -21,17 +22,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    async function loadSession() {
+    if (isInitialized) return;
+    
+    const initializeAuth = async () => {
       setIsLoading(true);
       try {
-        console.log('Loading auth session...');
+        console.log('Carregando sessão de autenticação...');
         
-        // Set up auth state listener
+        // Primeiro configurar o listener para mudanças de estado de autenticação
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (event, newSession) => {
-            console.log('Auth state changed:', event);
+            console.log('Estado de autenticação alterado:', event);
             
             if (event === 'SIGNED_IN') {
               toast({
@@ -52,25 +56,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         );
 
-        // Then check for existing session
+        // Depois verificar a sessão existente
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error fetching session:', error.message);
+          console.error('Erro ao buscar sessão:', error.message);
           throw error;
         }
         
         setSession(data.session);
         setUser(data.session?.user ?? null);
         
-        console.log('Initial session state:', 
-          data.session ? 'User logged in' : 'No session');
+        console.log('Estado inicial da sessão:', 
+          data.session ? 'Utilizador autenticado' : 'Sem sessão');
 
         return () => {
           subscription.unsubscribe();
         };
       } catch (error: any) {
-        console.error('Error loading auth session:', error);
+        console.error('Erro ao carregar sessão de autenticação:', error);
         toast({
           variant: "destructive",
           title: "Erro de autenticação",
@@ -78,15 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } finally {
         setIsLoading(false);
+        setIsInitialized(true);
       }
-    }
+    };
 
-    loadSession();
-  }, [toast]);
+    initializeAuth();
+  }, [toast, isInitialized]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Attempting to sign in with email:', email);
+      console.log('Tentando login com email:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -94,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        console.error('Supabase auth error:', error);
+        console.error('Erro de autenticação Supabase:', error);
         toast({
           variant: "destructive",
           title: "Erro ao entrar",
@@ -103,12 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error };
       }
 
-      console.log('Sign in successful');
+      console.log('Login bem-sucedido');
       
-      // Toast is handled by auth state change listener
       return { success: true, error: null };
     } catch (error: any) {
-      console.error('Error during sign in:', error);
+      console.error('Erro durante o login:', error);
       toast({
         variant: "destructive",
         title: "Erro ao entrar",

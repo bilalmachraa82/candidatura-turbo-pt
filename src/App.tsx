@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/AuthContext';
 import { AIProvider } from '@/context/AIContext';
@@ -18,9 +18,13 @@ function App() {
       <AuthProvider>
         <AIProvider>
           <Routes>
+            {/* Rotas públicas */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/contactos" element={<ContactPage />} />
+            
+            {/* Rotas protegidas */}
             <Route path="/" element={
               <ProtectedRoute>
                 <DashboardPage />
@@ -31,7 +35,8 @@ function App() {
                 <ProjectPage />
               </ProtectedRoute>
             } />
-            <Route path="/contactos" element={<ContactPage />} />
+            
+            {/* Rota de fallback para páginas não encontradas */}
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
