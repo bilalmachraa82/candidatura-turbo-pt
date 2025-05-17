@@ -27,27 +27,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function loadSession() {
       setIsLoading(true);
       try {
-        // Set up auth state listener FIRST
+        // First set up auth state listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (event, newSession) => {
+            console.log('Auth state changed:', event);
+            
+            if (event === 'SIGNED_IN') {
+              toast({
+                title: "Autenticação bem-sucedida",
+                description: "Bem-vindo de volta!"
+              });
+            }
+            
+            if (event === 'SIGNED_OUT') {
+              toast({
+                title: "Sessão terminada",
+                description: "Sessão terminada com sucesso."
+              });
+            }
+            
             setSession(newSession);
             setUser(newSession?.user ?? null);
           }
         );
 
-        // THEN check for existing session
+        // Then check for existing session
         const { data, error } = await supabase.auth.getSession();
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching session:', error.message);
+          throw error;
+        }
         
         setSession(data.session);
         setUser(data.session?.user ?? null);
+        
+        console.log('Initial session state:', 
+          data.session ? 'User logged in' : 'No session');
 
         return () => {
           subscription.unsubscribe();
         };
       } catch (error: any) {
-        console.error('Error loading auth session:', error.message);
+        console.error('Error loading auth session:', error);
         toast({
           variant: "destructive",
           title: "Erro de autenticação",
@@ -63,32 +85,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting to sign in with email:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('Supabase auth error:', error);
         toast({
           variant: "destructive",
           title: "Erro ao entrar",
-          description: error.message
+          description: error.message || "Verifique as suas credenciais"
         });
         return { success: false, error };
       }
 
-      toast({
-        title: "Login bem-sucedido",
-        description: "Bem-vindo de volta!"
-      });
+      console.log('Sign in successful');
       
+      // Toast is handled by auth state change listener
       return { success: true, error: null };
     } catch (error: any) {
       console.error('Error during sign in:', error);
       toast({
         variant: "destructive",
         title: "Erro ao entrar",
-        description: error.message
+        description: "Erro inesperado ao autenticar. Tente novamente mais tarde."
       });
       return { success: false, error };
     }
@@ -127,7 +150,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      // Toast is handled by auth state change listener
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao sair",
+        description: "Ocorreu um erro ao terminar a sessão."
+      });
+    }
   };
 
   const resetPassword = async (email: string) => {

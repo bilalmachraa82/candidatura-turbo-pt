@@ -5,12 +5,13 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://sapyhkbmrscensguyzbt.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhcHloa2JtcnNjZW5zZ3V5emJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcxNTI2NzAsImV4cCI6MjA2MjcyODY3MH0.fQqkmTLWQGgtpYm85UY97fuRV34_-kA8NGk16rDOilI';
 
-// Create and export the Supabase client with proper configuration
+// Create and export the Supabase client with browser-safe configuration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    storage: localStorage,
+    // Use window.localStorage only on client side
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     storageKey: 'pt2030-auth-token',
     detectSessionInUrl: false,
   }

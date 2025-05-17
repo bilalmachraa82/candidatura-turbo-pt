@@ -8,12 +8,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import LogoPT2030 from '@/components/LogoPT2030';
+import { AlertCircle } from 'lucide-react';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, user } = useAuth();
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const { signIn, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -27,23 +29,41 @@ const LoginPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginError(null);
 
     try {
+      console.log('Attempting login with:', { email });
+      
+      if (!email || !password) {
+        setLoginError('Email e senha são obrigatórios');
+        setIsLoading(false);
+        return;
+      }
+
       const { success, error } = await signIn(email, password);
+      
       if (success) {
+        console.log('Login successful, redirecting...');
         navigate('/');
+      } else {
+        console.error('Login failed:', error);
+        setLoginError(error?.message || 'Erro ao fazer login. Verifique suas credenciais.');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao iniciar sessão",
-        description: error.message || "Verifique as suas credenciais e tente novamente"
-      });
+      console.error('Exception during login:', error);
+      setLoginError('Erro inesperado ao autenticar. Tente novamente mais tarde.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pt-green"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-gray-50">
@@ -60,6 +80,13 @@ const LoginPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {loginError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-3 mb-4 flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+              <span>{loginError}</span>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -70,6 +97,8 @@ const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
+                className="focus:ring-pt-green focus:border-pt-green"
               />
             </div>
             <div className="space-y-2">
@@ -89,6 +118,8 @@ const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
+                className="focus:ring-pt-green focus:border-pt-green"
               />
             </div>
             <Button
