@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User, AuthError } from '@supabase/supabase-js';
@@ -27,7 +26,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function loadSession() {
       setIsLoading(true);
       try {
-        // First set up auth state listener
+        console.log('Loading auth session...');
+        
+        // Set up auth state listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (event, newSession) => {
             console.log('Auth state changed:', event);
@@ -111,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({
         variant: "destructive",
         title: "Erro ao entrar",
-        description: "Erro inesperado ao autenticar. Tente novamente mais tarde."
+        description: "Erro inesperado ao autenticar. Verifique sua conexão com a internet."
       });
       return { success: false, error };
     }

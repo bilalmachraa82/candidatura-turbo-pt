@@ -8,12 +8,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import LogoPT2030 from '@/components/LogoPT2030';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const { signIn, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -28,7 +28,7 @@ const LoginPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
     setLoginError(null);
 
     try {
@@ -36,7 +36,7 @@ const LoginPage = () => {
       
       if (!email || !password) {
         setLoginError('Email e senha são obrigatórios');
-        setIsLoading(false);
+        setIsSubmitting(false);
         return;
       }
 
@@ -47,13 +47,13 @@ const LoginPage = () => {
         navigate('/');
       } else {
         console.error('Login failed:', error);
-        setLoginError(error?.message || 'Erro ao fazer login. Verifique suas credenciais.');
+        setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
       }
     } catch (error: any) {
       console.error('Exception during login:', error);
-      setLoginError('Erro inesperado ao autenticar. Tente novamente mais tarde.');
+      setLoginError('Erro ao conectar ao serviço. Verifique sua conexão com a internet.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -97,7 +97,7 @@ const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="focus:ring-pt-green focus:border-pt-green"
               />
             </div>
@@ -118,16 +118,21 @@ const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="focus:ring-pt-green focus:border-pt-green"
               />
             </div>
             <Button
               type="submit"
               className="w-full bg-pt-green hover:bg-pt-green/90"
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
-              {isLoading ? "A entrar..." : "Entrar"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  A entrar...
+                </>
+              ) : "Entrar"}
             </Button>
           </form>
         </CardContent>
