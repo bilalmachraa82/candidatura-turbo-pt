@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Session, User, AuthError } from '@supabase/supabase-js';
+import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -21,55 +22,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    let subscription: { unsubscribe: () => void } | null = null;
-
-    const initializeAuth = async () => {
-      if (isInitialized) return;
-      
-      setIsLoading(true);
-      
+    
+    async function setupAuth() {
       try {
+        setIsLoading(true);
         console.log('Inicializando autenticação...');
         
-        // Subscribe to auth events first (before fetching session)
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+        // Set up the auth state change listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
           if (!mounted) return;
           
           console.log('Estado de autenticação alterado:', event);
           
-          if (event === 'SIGNED_IN') {
-            console.log('Usuário autenticado com sucesso:', newSession?.user?.email);
-          } else if (event === 'SIGNED_OUT') {
-            console.log('Usuário desconectado');
-          }
-          
+          // Update session and user state synchronously
           setSession(newSession);
           setUser(newSession?.user ?? null);
+          
+          // Show toasts for login/logout events
+          if (event === 'SIGNED_IN') {
+            console.log('Usuário autenticado com sucesso:', newSession?.user?.email);
+            toast({
+              title: "Login bem-sucedido",
+              description: `Bem-vindo, ${newSession?.user?.email}`
+            });
+          } else if (event === 'SIGNED_OUT') {
+            console.log('Usuário desconectado');
+            toast({
+              title: "Sessão terminada",
+              description: "Você foi desconectado com sucesso."
+            });
+          }
         });
         
-        if (mounted) {
-          subscription = authListener.subscription;
+        // Then check for an existing session
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Erro ao buscar sessão:', error.message);
+          throw error;
         }
         
-        // Then check for an existing session
+        console.log('Sessão existente:', data.session ? 'Sim' : 'Não');
+        
         if (mounted) {
-          const { data, error } = await supabase.auth.getSession();
-          
-          if (error) {
-            console.error('Erro ao buscar sessão:', error.message);
-            throw error;
-          }
-          
-          console.log('Sessão existente:', data.session ? 'Sim' : 'Não');
-          
-          if (mounted) {
-            setSession(data.session);
-            setUser(data.session?.user ?? null);
-          }
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
         }
       } catch (error: any) {
         console.error('Erro na inicialização da autenticação:', error);
@@ -83,20 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         if (mounted) {
           setIsLoading(false);
-          setIsInitialized(true);
         }
       }
-    };
-
-    initializeAuth();
-
-    return () => {
-      mounted = false;
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, [toast, isInitialized]);
+      
+      return () => {
+        mounted = false;
+      };
+    }
+    
+    setupAuth();
+  }, [toast]);
 
   const signIn = async (email: string, password: string) => {
     try {

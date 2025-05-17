@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,21 +19,19 @@ const LoginPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const from = location.state?.from || '/';
   
-  // Use a ref to track navigation attempts to avoid infinite redirects 
-  const navigationAttempted = React.useRef(false);
+  // Use a ref to track if navigation has been attempted
+  const navigationAttempted = useRef(false);
   
-  // Redirecionar se já estiver autenticado
+  // Redirect if already authenticated
   useEffect(() => {
     if (user && !authLoading && !navigationAttempted.current) {
       console.log('Utilizador já autenticado, redirecionando para a página inicial');
       navigationAttempted.current = true;
-      
-      // Get the redirect path from location state or default to '/'
-      const from = location.state?.from || '/';
       navigate(from, { replace: true });
     }
-  }, [user, navigate, location, authLoading]);
+  }, [user, navigate, from, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +53,8 @@ const LoginPage = () => {
       
       if (success) {
         console.log('Login bem-sucedido, redirecionando...');
-        // No need to redirect here as the useEffect will handle it
+        navigationAttempted.current = true;
+        navigate(from, { replace: true });
       } else {
         console.error('Falha no login:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');

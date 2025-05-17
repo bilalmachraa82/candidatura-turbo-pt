@@ -18,13 +18,13 @@ function App() {
       <AuthProvider>
         <AIProvider>
           <Routes>
-            {/* Rotas públicas */}
+            {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/contactos" element={<ContactPage />} />
             
-            {/* Rotas protegidas */}
+            {/* Protected routes */}
             <Route path="/" element={
               <ProtectedRoute>
                 <DashboardPage />
@@ -36,7 +36,7 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Redirect for root path - added to avoid direct URL issues */}
+            {/* Fallback for unknown routes */}
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
