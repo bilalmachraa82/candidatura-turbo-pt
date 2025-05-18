@@ -10,6 +10,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import ProjectPage from '@/pages/ProjectPage';
 import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 function App() {
   // Desabilitar Plausible tracking de uma forma segura
@@ -35,9 +36,23 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/contactos" element={<ContactPage />} />
             
-            {/* Rotas que podem ser acessadas com ou sem autenticação */}
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/projetos/:projectId" element={<ProjectPage />} />
+            {/* Rotas protegidas */}
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/projetos/:projectId" 
+              element={
+                <ProtectedRoute>
+                  <ProjectPage />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Fallback para rotas desconhecidas */}
             <Route path="*" element={<NotFound />} />

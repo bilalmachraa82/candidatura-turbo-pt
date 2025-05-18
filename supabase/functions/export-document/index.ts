@@ -1,77 +1,118 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.33.1';
+// Supabase Edge Function para exportação de documentos
+// Este arquivo será implantado automaticamente no Supabase Edge Functions
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// Handler principal da Edge Function
+Deno.serve(async (req) => {
+  // Verificar método
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
   
   try {
-    const { projectId, format, options, projectName, sections, files } = await req.json();
+    // Parse do corpo da requisição
+    const { projectId, format = 'pdf', includeAttachments = false, language = 'pt' } = await req.json();
     
-    // Initialize Supabase client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-    
-    if (!projectId || !format) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }), 
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!projectId) {
+      return new Response(JSON.stringify({ error: 'Missing projectId in request body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
-    // Generate a filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `PT2030_${projectName.replace(/\s+/g, '_')}_${timestamp}.${format}`;
+    // Verificar formato válido
+    if (format !== 'pdf' && format !== 'docx') {
+      return new Response(JSON.stringify({ error: 'Invalid format. Must be "pdf" or "docx"' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     
-    // In a real implementation, this would generate a document
-    // For now, we'll simulate the export process
+    // Criar cliente Supabase usando as variáveis de ambiente da Edge Function
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     
-    // Create a document record
-    const { data, error } = await supabaseAdmin
-      .from('exported_documents')
-      .insert({
-        project_id: projectId,
-        file_name: fileName,
-        format,
-        status: 'completed',
-        options: options || {},
-        sections_count: sections?.length || 0,
-        files_count: files?.length || 0
-      })
-      .select()
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Buscar informações do projeto
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
       .single();
     
-    if (error) {
-      throw error;
+    if (projectError || !projectData) {
+      return new Response(JSON.stringify({ error: `Project not found: ${projectError?.message}` }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
-    // Generate a fake download URL
-    const downloadUrl = `https://example.com/downloads/${fileName}`;
+    // Buscar seções do projeto
+    const { data: sectionsData, error: sectionsError } = await supabase
+      .from('sections')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('key');
     
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        url: downloadUrl,
-        fileName,
-        pageCount: sections?.length || 0
-      }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    if (sectionsError) {
+      console.error(`[export-document] Erro ao buscar seções: ${sectionsError.message}`);
+    }
+    
+    // Buscar arquivos anexos, se solicitado
+    let filesData = [];
+    if (includeAttachments) {
+      const { data: files, error: filesError } = await supabase
+        .from('indexed_files')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('status', 'indexed');
+      
+      if (!filesError && files) {
+        filesData = files;
+      }
+    }
+    
+    console.log(`[export-document] Gerando ${format.toUpperCase()} para projeto: ${projectData.title}`);
+    
+    // Em produção, aqui geraria o documento real usando uma biblioteca como PDFKit ou similar
+    
+    // Simular tempo de processamento
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // URL de exemplo para o documento gerado
+    const fileName = `${projectData.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.${format}`;
+    const mockUrl = `https://example.com/exports/${fileName}`;
+    
+    // Em produção, faríamos upload do arquivo para o Supabase Storage
+    
+    return new Response(JSON.stringify({
+      success: true,
+      documentName: fileName,
+      url: mockUrl,
+      format,
+      projectId,
+      generatedAt: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
   } catch (error) {
-    console.error('Error:', error.message);
-    return new Response(
-      JSON.stringify({ error: error.message }), 
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('[export-document] Erro:', error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Erro desconhecido durante a exportação do documento'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 });

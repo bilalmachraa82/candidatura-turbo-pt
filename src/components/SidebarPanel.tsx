@@ -1,139 +1,118 @@
+
 import React from 'react';
-import { AlertCircle, CheckCircle, FileText } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import ModelSelector from './ModelSelector';
+import { FileText, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Source } from '@/types/ai';
 
 interface SidebarPanelProps {
   projectId: string;
   charsUsed: number;
   charLimit: number;
-  ragStatus: 'poor' | 'medium' | 'good';
+  ragStatus?: 'low' | 'medium' | 'high';
   sources: Source[];
 }
 
 const SidebarPanel: React.FC<SidebarPanelProps> = ({
   projectId,
-  charsUsed,
-  charLimit,
-  ragStatus,
-  sources
+  charsUsed = 0,
+  charLimit = 5000,
+  ragStatus = 'medium',
+  sources = []
 }) => {
-  const getRagStatusIcon = () => {
-    switch(ragStatus) {
-      case 'poor':
-        return <AlertCircle className="h-4 w-4 text-pt-red" />;
-      case 'medium':
-        return <AlertCircle className="h-4 w-4 text-amber-500" />;
-      case 'good':
-        return <CheckCircle className="h-4 w-4 text-pt-green" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-400" />;
-    }
-  };
+  const usagePercentage = Math.round((charsUsed / charLimit) * 100);
   
-  const getRagStatusText = () => {
-    switch(ragStatus) {
-      case 'poor':
-        return 'Fraco - Poucos dados relevantes encontrados';
-      case 'medium':
-        return 'Médio - Alguns dados relevantes encontrados';
-      case 'good':
-        return 'Bom - Dados relevantes encontrados';
-      default:
-        return 'Desconhecido';
-    }
-  };
+  // Configurar a cor da barra de progresso
+  let progressColor = "bg-green-500";
+  if (usagePercentage > 90) {
+    progressColor = "bg-red-500";
+  } else if (usagePercentage > 75) {
+    progressColor = "bg-yellow-500";
+  }
   
-  const getRagStatusClass = () => {
-    switch(ragStatus) {
-      case 'poor':
-        return 'bg-red-100 text-pt-red';
-      case 'medium':
-        return 'bg-amber-100 text-amber-800';
-      case 'good':
-        return 'bg-green-100 text-pt-green';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  // Status da base de conhecimento
+  const ragStatusInfo = {
+    low: {
+      label: 'Poucos documentos',
+      color: 'bg-red-500',
+      icon: <AlertTriangle className="h-4 w-4 text-red-500" />,
+      message: 'Carregue mais documentos para melhorar os resultados da IA'
+    },
+    medium: {
+      label: 'Base de conhecimento adequada',
+      color: 'bg-yellow-500',
+      icon: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
+      message: 'Considere adicionar mais documentos para melhores resultados'
+    },
+    high: {
+      label: 'Base de conhecimento completa',
+      color: 'bg-green-500',
+      icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+      message: 'Documentação robusta para geração assistida por IA'
     }
-  };
-  
-  const getSourceIcon = (type: 'pdf' | 'excel' | 'document') => {
-    return <FileText className="h-4 w-4 mr-2" />;
   };
 
   return (
-    <div className="bg-gray-50 border rounded-lg p-4 h-full">
-      <div className="mb-6">
-        <h3 className="text-lg font-medium text-pt-blue mb-2">Modelo de IA</h3>
-        <ModelSelector />
-      </div>
-      
-      <Separator className="my-4" />
-      
-      <div className="mb-6">
-        <h3 className="text-lg font-medium text-pt-blue mb-2">Estatísticas</h3>
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-gray-600 mb-1">Caracteres Utilizados</p>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className={`h-2.5 rounded-full ${
-                  charsUsed > charLimit ? 'bg-pt-red' : 'bg-pt-green'
-                }`}
-                style={{ width: `${Math.min(100, (charsUsed / charLimit) * 100)}%` }}
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-medium">Estatísticas do Projeto</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Uso de caracteres */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="font-medium">Uso de caracteres</span>
+              <span>{usagePercentage}%</span>
+            </div>
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${progressColor} transition-all`}
+                style={{ width: `${usagePercentage}%` }}
               ></div>
             </div>
-            <p className="text-xs text-right mt-1">
-              {charsUsed} / {charLimit}
+            <p className="text-xs text-gray-500">
+              {charsUsed.toLocaleString()} de {charLimit.toLocaleString()} caracteres utilizados
             </p>
           </div>
           
-          <div>
-            <p className="text-sm text-gray-600 mb-1">Status RAG</p>
-            <div className="flex items-center">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="outline" className={`flex items-center gap-1 ${getRagStatusClass()}`}>
-                      {getRagStatusIcon()}
-                      {ragStatus.charAt(0).toUpperCase() + ragStatus.slice(1)}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{getRagStatusText()}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+          {/* Status da base de conhecimento */}
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-sm">Base de Conhecimento</span>
+              <Badge className={`bg-opacity-20 text-gray-800 ${ragStatusInfo[ragStatus].color.replace('bg-', 'bg-opacity-20 text-')}`}>
+                {ragStatusInfo[ragStatus].label}
+              </Badge>
+            </div>
+            <div className="flex items-start space-x-2 text-xs text-gray-600">
+              {ragStatusInfo[ragStatus].icon}
+              <span>{ragStatusInfo[ragStatus].message}</span>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       
-      <Separator className="my-4" />
-      
-      <div>
-        <h3 className="text-lg font-medium text-pt-blue mb-2">Fontes</h3>
-        {sources.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhuma fonte disponível</p>
-        ) : (
-          <ul className="space-y-2">
-            {sources.map((source) => (
-              <li key={source.id} className="text-sm">
-                <div className="flex items-start">
-                  {getSourceIcon(source.type)}
+      {/* Fontes utilizadas */}
+      {sources.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-medium">Fontes Utilizadas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {sources.map((source) => (
+                <li key={source.id} className="flex items-start space-x-2">
+                  <FileText className="h-4 w-4 text-pt-blue mt-0.5" />
                   <div>
-                    <p className="font-medium">{source.name}</p>
+                    <p className="text-sm font-medium">{source.name}</p>
                     <p className="text-xs text-gray-500">{source.reference}</p>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

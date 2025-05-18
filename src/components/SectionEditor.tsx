@@ -1,24 +1,25 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Wand2, Save, FileText, FileSpreadsheet } from 'lucide-react'; 
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Sparkles, Save } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
-import { useAI } from '@/context/AIContext';
 import { supabase } from '@/lib/supabase';
-import { generateText } from '@/api/generateText';
+import { useAI } from '@/context/AIContext';
+import ModelSelector from '@/components/ModelSelector';
 import { GenerationSource } from '@/types/api';
 
 interface SectionEditorProps {
   title: string;
-  description: string;
+  description?: string;
   sectionKey: string;
   projectId: string;
-  initialText?: string;
+  initialText: string;
   charLimit: number;
-  onTextChange?: (text: string) => void;
-  onSave?: (text: string) => void;
-  onSourcesUpdate?: (sources: GenerationSource[]) => void;
+  onTextChange: (text: string) => void;
+  onSourcesUpdate: (sources: GenerationSource[]) => void;
 }
 
 const SectionEditor: React.FC<SectionEditorProps> = ({
@@ -27,198 +28,200 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   sectionKey,
   projectId,
   initialText = '',
-  charLimit,
+  charLimit = 2000,
   onTextChange,
-  onSave,
   onSourcesUpdate
 }) => {
   const [text, setText] = useState(initialText);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [sources, setSources] = useState<GenerationSource[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o');
   const { toast } = useToast();
-  const { model: selectedModel } = useAI();
-  const charsUsed = text.length;
-  const isOverLimit = charsUsed > charLimit;
+  const { generateText } = useAI();
 
-  // Initialize text with initialText only once when component mounts
-  // or when initialText changes
   useEffect(() => {
-    setText(initialText);
+    // Sincronizar o texto com o estado inicial
+    if (initialText !== text) {
+      setText(initialText);
+    }
   }, [initialText]);
 
-  // Call onTextChange only when text actually changes manually, not during initialization
-  // This is key to prevent the infinite loop
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newText = e.target.value;
-    setText(newText);
-    
-    // Call the parent's onTextChange handler with the new text
-    if (onTextChange) {
-      onTextChange(newText);
-    }
-  };
-
-  // Use the useCallback hook to memoize this function
-  // and prevent it from being recreated on every render
-  const updateSources = useCallback((newSources: GenerationSource[]) => {
-    if (onSourcesUpdate) {
-      onSourcesUpdate(newSources);
-    }
-  }, [onSourcesUpdate]);
-
-  // Call onSourcesUpdate when sources change
-  useEffect(() => {
-    // Only update the parent if there are sources to update with
-    if (sources.length > 0) {
-      updateSources(sources);
-    }
-  }, [sources, updateSources]);
-
-  const handleGenerateText = async () => {
-    if (!projectId || !sectionKey) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "ID do projeto ou secção em falta."
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    
-    try {
-      const result = await generateText(projectId, sectionKey, charLimit, selectedModel);
-      setText(result.text);
-      setSources(result.sources);
-      
-      // Call the parent's onTextChange handler with the generated text
-      if (onTextChange) {
-        onTextChange(result.text);
-      }
-      
-      toast({
-        title: "Texto gerado com sucesso",
-        description: `Gerado utilizando ${selectedModel}.`
-      });
-    } catch (error: any) {
-      console.error("Generation error:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro na geração de texto",
-        description: error.message || "Não foi possível gerar o texto. Por favor tente novamente."
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+    setText(e.target.value);
+    onTextChange(e.target.value);
   };
 
   const handleSave = async () => {
-    if (!projectId || !sectionKey) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao guardar",
-        description: "ID do projeto ou secção em falta."
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    
     try {
-      // Update section content in Supabase
+      setIsSaving(true);
+      
+      // Atualizar o conteúdo da seção no Supabase
       const { error } = await supabase
         .from('sections')
-        .update({ content: text, updated_at: new Date().toISOString() })
+        .update({ content: text, updated_at: new Date() })
         .eq('project_id', projectId)
         .eq('key', sectionKey);
-
+      
       if (error) throw error;
-
-      if (onSave) {
-        onSave(text);
-      }
       
       toast({
-        title: "Secção guardada",
-        description: "O conteúdo foi guardado com sucesso."
+        title: "Seção salva",
+        description: "O conteúdo foi salvo com sucesso."
       });
     } catch (error: any) {
-      console.error("Save error:", error);
+      console.error('Erro ao salvar seção:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao guardar",
-        description: error.message || "Não foi possível guardar o conteúdo."
+        title: "Erro ao salvar",
+        description: error.message || "Não foi possível salvar o conteúdo."
       });
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleGenerateText = async () => {
+    try {
+      setIsGenerating(true);
+      
+      const result = await generateText({
+        projectId,
+        section: sectionKey,
+        charLimit,
+        model: selectedModel
+      });
+      
+      if (result.success) {
+        setText(result.text);
+        onTextChange(result.text);
+        
+        // Atualizar fontes
+        if (result.sources) {
+          onSourcesUpdate(result.sources);
+        }
+        
+        toast({
+          title: "Texto gerado",
+          description: "O texto foi gerado com sucesso."
+        });
+        
+        // Salvar automaticamente o texto gerado
+        await handleSave();
+      } else {
+        throw new Error(result.error || "Falha ao gerar texto");
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar texto:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro na geração",
+        description: error.message || "Não foi possível gerar o texto."
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const charsCount = text.length;
+  const charsPercentage = Math.min(100, Math.round((charsCount / charLimit) * 100));
+  
+  // Determinar a cor da barra de progresso
+  let progressColor = "bg-green-500";
+  if (charsPercentage > 90) {
+    progressColor = "bg-red-500";
+  } else if (charsPercentage > 75) {
+    progressColor = "bg-yellow-500";
+  }
+
   return (
-    <div className="mb-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3">
-        <div>
-          <h3 className="text-lg font-medium text-pt-blue">{title}</h3>
-          <p className="text-sm text-gray-600">{description}</p>
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg font-semibold text-pt-blue">{title}</CardTitle>
+            {description && <CardDescription>{description}</CardDescription>}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <ModelSelector 
+              value={selectedModel}
+              onChange={setSelectedModel}
+              disabled={isGenerating}
+            />
+            
+            <Button 
+              variant="default"
+              className="bg-pt-green hover:bg-pt-green/90 text-white"
+              size="sm"
+              disabled={isGenerating}
+              onClick={handleGenerateText}
+            >
+              {isGenerating ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  A gerar...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Gerar com IA
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2 mt-2 sm:mt-0">
-          <Button
-            className="bg-pt-blue hover:bg-pt-blue/90"
-            onClick={handleGenerateText}
-            disabled={isGenerating}
-          >
-            <Wand2 className="mr-2 h-4 w-4" />
-            {isGenerating ? "A gerar..." : "Gerar com IA"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSave}
-            disabled={isSaving || isOverLimit}
-            className="border-pt-blue text-pt-blue hover:bg-pt-blue/10"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? "A guardar..." : "Guardar"}
-          </Button>
+      </CardHeader>
+      
+      <CardContent>
+        <div className="space-y-4">
+          <Textarea
+            value={text}
+            onChange={handleTextChange}
+            placeholder={`Escreva o conteúdo para ${title} aqui...`}
+            className="min-h-[200px] resize-y"
+          />
+          
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-sm text-gray-500">
+              <span>
+                <span className={charsCount > charLimit ? "text-red-600 font-medium" : ""}>
+                  {charsCount}
+                </span>
+                /{charLimit} caracteres
+              </span>
+              <span>{charsPercentage}%</span>
+            </div>
+            
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${progressColor} transition-all`}
+                style={{ width: `${charsPercentage}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  A salvar...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
-      
-      <Textarea
-        value={text}
-        onChange={handleTextChange}
-        placeholder={`Escreva ou gere conteúdo para ${title}...`}
-        className={`min-h-[200px] ${isOverLimit ? 'border-pt-red' : ''}`}
-      />
-      
-      <div className="flex justify-between mt-2 text-sm">
-        <span className={`${isOverLimit ? 'text-pt-red' : 'text-gray-500'}`}>
-          {charsUsed} / {charLimit} caracteres
-        </span>
-        {isOverLimit && (
-          <span className="text-pt-red">
-            Excedeu o limite em {charsUsed - charLimit} caracteres
-          </span>
-        )}
-      </div>
-      
-      {sources.length > 0 && (
-        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Fontes Consultadas</h4>
-          <ul className="text-xs text-gray-600 space-y-1">
-            {sources.map((source, index) => (
-              <li key={source.id || index} className="flex items-center">
-                {source.type === 'pdf' ? (
-                  <FileText className="h-3 w-3 text-red-500 mr-1" />
-                ) : (
-                  <FileSpreadsheet className="h-3 w-3 text-green-600 mr-1" />
-                )}
-                <span>{source.name}: {source.reference}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

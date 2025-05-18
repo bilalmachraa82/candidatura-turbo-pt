@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/lib/supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -22,39 +23,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   
+  // Verificar a sessão atual e configurar o listener de mudanças de estado de autenticação
   useEffect(() => {
     // Flag para garantir que só limpamos a função uma vez
     let mounted = true;
     
-    const initializeAuth = async () => {
+    const setupAuthListener = async () => {
       try {
-        // Verificar conexão com o Supabase
-        try {
-          await supabase.from('_health').select('*').limit(1);
-          console.log('Supabase connection test successful');
-        } catch (connectionError) {
-          console.error('Supabase connection test failed:', connectionError);
-        }
-        
-        // Configurar a subscrição de alteração de estado de autenticação
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+        // Configurar o listener de autenticação ANTES de verificar a sessão atual
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
           if (!mounted) return;
           
           console.log(`Auth state changed: ${event}`, newSession?.user?.email || 'no user');
           
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          
-          if (isLoading) {
-            setIsLoading(false);
-          } else {
-            if (event === 'SIGNED_IN') {
+          if (newSession) {
+            setSession(newSession);
+            setUser(newSession.user);
+            
+            // Não mostrar toast durante inicialização
+            if (!isLoading && event === 'SIGNED_IN') {
               toast({
                 title: "Login bem-sucedido",
-                description: `Bem-vindo, ${newSession?.user?.email}`
+                description: `Bem-vindo, ${newSession.user.email}`
               });
-            } else if (event === 'SIGNED_OUT') {
+              
+              // Redirecionar para a página principal após login
+              if (location.pathname === '/login' || location.pathname === '/register') {
+                navigate('/');
+              }
+            }
+          } else {
+            setSession(null);
+            setUser(null);
+            
+            // Não mostrar toast durante inicialização
+            if (!isLoading && event === 'SIGNED_OUT') {
               toast({
                 title: "Sessão terminada",
                 description: "Você foi desconectado com sucesso."
@@ -62,19 +68,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         });
-        
-        // Verificar a sessão existente apenas uma vez durante a inicialização
+
+        // APÓS configurar o listener, verificar se há uma sessão atual
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error fetching session:', error);
+          throw error;
         }
         
         if (mounted) {
           setSession(data.session);
           setUser(data.session?.user ?? null);
           setIsLoading(false);
+          
+          // Se estamos em uma rota de autenticação mas já estamos logados, redirecionar
+          if (data.session && (location.pathname === '/login' || location.pathname === '/register')) {
+            navigate('/');
+          }
         }
+        
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error('Erro ao inicializar autenticação:', error);
         if (mounted) {
@@ -83,31 +99,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    initializeAuth();
+    setupAuthListener();
     
     // Limpar ao desmontar componente
     return () => {
       mounted = false;
     };
-  }, [toast]);
+  }, [toast, navigate, location.pathname, isLoading]);
   
   // Implementar funções de autenticação com melhor tratamento de erros
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Attempting signIn with Supabase for:', email);
+      console.log('Tentando login com Supabase para:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
-        console.error('Auth error during sign in:', error);
+        console.error('Erro de autenticação durante o login:', error);
         return { success: false, error };
       }
       
       return { success: true, error: null };
     } catch (error: any) {
-      console.error('Exception during sign in:', error);
+      console.error('Exceção durante o login:', error);
       return { 
         success: false, 
         error: error as AuthError 
@@ -137,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return { success: true, error: null };
     } catch (error: any) {
-      console.error('Error during sign up:', error);
+      console.error('Erro durante o registro:', error);
       toast({
         variant: "destructive",
         title: "Erro ao registrar",
@@ -151,8 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await supabase.auth.signOut();
       // Toast é tratado pelo listener de alteração de estado de auth
+      navigate('/login');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Erro ao fazer logout:', error);
       toast({
         variant: "destructive",
         title: "Erro ao sair",
@@ -164,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/atualizar-senha`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       
       if (error) {
@@ -182,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return { success: true, error: null };
     } catch (error: any) {
-      console.error('Error during password reset:', error);
+      console.error('Erro durante a redefinição de senha:', error);
       toast({
         variant: "destructive",
         title: "Erro ao redefinir senha",
@@ -209,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    console.warn('useAuth was called outside of AuthProvider - returning default values');
+    console.warn('useAuth foi chamado fora do AuthProvider - retornando valores padrão');
     return {
       user: null,
       session: null,
