@@ -8,15 +8,25 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+// Contador para prevenir loops infinitos
+let redirectCount = 0;
+const MAX_REDIRECTS = 3;
+const resetCounterAfter = 10000; // 10 segundos
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
   
   useEffect(() => {
-    console.log("ProtectedRoute - isLoading:", isLoading, "user:", !!user, "path:", location.pathname);
-  }, [isLoading, user, location.pathname]);
-
-  // Show loading indicator while checking authentication state
+    // Resetar contador após um tempo
+    const timer = setTimeout(() => {
+      redirectCount = 0;
+    }, resetCounterAfter);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Mostrar carregamento enquanto verifica estado de autenticação
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -25,14 +35,31 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       </div>
     );
   }
-
-  // If not authenticated, redirect to login
+  
+  // Se não autenticado, redirecionar para login
   if (!user) {
+    // Verificar se já redirecionamos muitas vezes para evitar loops infinitos
+    redirectCount++;
+    console.log(`Redirect count: ${redirectCount}`);
+    
+    if (redirectCount > MAX_REDIRECTS) {
+      // Exibir página de erro em vez de redirecionar novamente
+      return (
+        <div className="flex h-screen w-full flex-col items-center justify-center">
+          <h1 className="text-2xl font-bold text-red-600">Erro de redirecionamento</h1>
+          <p className="mt-2 text-gray-600">Muitos redirecionamentos detectados. Por favor, tente novamente mais tarde.</p>
+          <a href="/login" className="mt-4 rounded bg-pt-blue px-4 py-2 text-white">
+            Tentar Novamente
+          </a>
+        </div>
+      );
+    }
+    
     console.log("User not authenticated, redirecting to login from:", location.pathname);
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
-
-  // User is authenticated, render the children
+  
+  // Usuário autenticado, renderizar filhos
   return <>{children}</>;
 };
 

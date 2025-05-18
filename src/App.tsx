@@ -13,10 +13,19 @@ import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
 
 function App() {
-  // Desabilitar rastreamento Plausible para resolver o erro de conexão recusada
+  // Desabilitar completamente o rastreamento Plausible
   if (typeof window !== 'undefined') {
     // @ts-ignore
-    window.plausible = function() {}; // Função nula para evitar erros
+    window.plausible = function() {
+      // Função vazia e silenciosa para evitar erros
+      return;
+    }; 
+    
+    // Impedir que seja redefinida
+    Object.defineProperty(window, 'plausible', {
+      writable: false,
+      configurable: false
+    });
   }
   
   return (

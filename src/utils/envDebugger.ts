@@ -1,6 +1,10 @@
 
 // Utility to check environment variables in dev mode
 export function checkEnvironmentVariables() {
+  // Cache para guardar se já verificamos cada variável
+  const hasChecked = sessionStorage.getItem('env-checked');
+  if (hasChecked === 'true') return;
+  
   const requiredVars = [
     'VITE_SUPABASE_URL',
     'VITE_SUPABASE_ANON_KEY',
@@ -22,6 +26,9 @@ export function checkEnvironmentVariables() {
   } else {
     console.log('✅ All required environment variables are set.');
   }
+
+  // Marcar como verificado para evitar repetições
+  sessionStorage.setItem('env-checked', 'true');
 
   return {
     supabaseConfigured: Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY),

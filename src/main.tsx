@@ -5,15 +5,9 @@ import App from './App.tsx'
 import './index.css'
 import { checkEnvironmentVariables } from './utils/envDebugger.ts'
 
-// Verificar variáveis de ambiente na inicialização
+// Verificar variáveis de ambiente na inicialização, mas sem exibir mensagens repetidas
 if (import.meta.env.DEV) {
-  const envStatus = checkEnvironmentVariables();
-  
-  if (envStatus.supabaseConfigured) {
-    console.info('🔑 Supabase configurado com sucesso!');
-  } else {
-    console.error('⚠️ Configuração do Supabase incompleta ou inválida!');
-  }
+  checkEnvironmentVariables();
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

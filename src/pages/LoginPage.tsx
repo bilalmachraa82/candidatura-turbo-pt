@@ -10,6 +10,10 @@ import { useAuth } from '@/context/AuthContext';
 import LogoPT2030 from '@/components/LogoPT2030';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
+// Contador para prevenir loops infinitos
+let loginAttempts = 0;
+const MAX_LOGIN_ATTEMPTS = 5;
+
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,42 +24,59 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Get the path the user was trying to access, or default to home
+  // Resetar contador de tentativas após 5 minutos
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loginAttempts = 0;
+    }, 5 * 60 * 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Obter o caminho que o usuário estava tentando acessar, ou padrão para home
   const from = location.state?.from || '/';
   
-  // Effect for automatic redirection when user is already authenticated
+  // Efeito para redirecionamento automático quando usuário já está autenticado
   useEffect(() => {
     if (user && !isLoading) {
       console.log('User already authenticated, redirecting to:', from);
-      navigate(from, { replace: true });
+      
+      // Usar um curto timeout para garantir que o estado de autenticação já foi atualizado
+      const redirectTimer = setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 100);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [user, navigate, from, isLoading]);
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
     
+    if (isSubmitting) return;
+    if (loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+      setLoginError("Muitas tentativas de login. Tente novamente mais tarde.");
+      return;
+    }
+    
+    loginAttempts++;
     setIsSubmitting(true);
     setLoginError(null);
-
+    
     try {
       if (!email || !password) {
         setLoginError('Email e senha são obrigatórios');
         setIsSubmitting(false);
         return;
       }
-
+      
       const { success, error } = await signIn(email, password);
       
       if (success) {
-        console.log('Login successful, redirecting to:', from);
-        
-        // Use a short timeout to ensure the auth state has been updated
-        setTimeout(() => {
-          navigate(from, { replace: true });
-        }, 100);
+        console.log('Login successful');
+        // Não redirecionamos aqui - deixamos o efeito useEffect fazer isso
       } else {
-        console.error('Login failed:', error);
+        console.log('Login failed:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
       }
     } catch (error: any) {
@@ -65,8 +86,8 @@ const LoginPage = () => {
       setIsSubmitting(false);
     }
   };
-
-  // Show loading indicator while authentication state is being checked
+  
+  // Mostrar indicador de carregamento enquanto o estado de autenticação está sendo verificado
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -77,8 +98,19 @@ const LoginPage = () => {
       </div>
     );
   }
-
-  // Only render the login form if not authenticated
+  
+  // Renderizar o formulário de login apenas se não estiver autenticado
+  if (user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-pt-green mb-4" />
+          <p className="text-gray-600">A redirecionar...</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-gray-50">
       <Card className="w-full max-w-md">
@@ -113,6 +145,7 @@ const LoginPage = () => {
                 required
                 disabled={isSubmitting}
                 className="focus:ring-pt-green focus:border-pt-green"
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -134,12 +167,13 @@ const LoginPage = () => {
                 required
                 disabled={isSubmitting}
                 className="focus:ring-pt-green focus:border-pt-green"
+                autoComplete="current-password"
               />
             </div>
             <Button
               type="submit"
               className="w-full bg-pt-green hover:bg-pt-green/90"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loginAttempts >= MAX_LOGIN_ATTEMPTS}
             >
               {isSubmitting ? (
                 <>
