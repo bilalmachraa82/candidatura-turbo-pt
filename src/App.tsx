@@ -13,19 +13,17 @@ import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
 
 function App() {
-  // Desabilitar completamente o rastreamento Plausible
+  // Desabilitar Plausible tracking de uma forma segura
   if (typeof window !== 'undefined') {
-    // @ts-ignore
-    window.plausible = function() {
-      // Função vazia e silenciosa para evitar erros
-      return;
-    }; 
-    
-    // Impedir que seja redefinida
-    Object.defineProperty(window, 'plausible', {
-      writable: false,
-      configurable: false
-    });
+    // Em vez de tentar redefinir 'plausible', apenas adicionamos uma
+    // função stub se não existir ainda
+    if (!window.hasOwnProperty('plausible') || typeof window.plausible !== 'function') {
+      // @ts-ignore - definindo stub function
+      window.plausible = function() {
+        // Função vazia e silenciosa
+        return;
+      };
+    }
   }
   
   return (

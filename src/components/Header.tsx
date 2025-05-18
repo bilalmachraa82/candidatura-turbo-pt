@@ -1,25 +1,35 @@
 
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogOut, LogIn, Menu, X } from 'lucide-react';
 import LogoPT2030 from './LogoPT2030';
 import { useAuth } from '@/context/AuthContext';
-import { useIsMobile } from '@/hooks/use-mobile'; // Fixed import name
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const isMobile = useIsMobile(); // Fixed variable name
-  const { user, signOut } = useAuth();
+  const isMobile = useIsMobile();
+  const location = useLocation();
   const navigate = useNavigate();
+  
+  // Verificar se estamos em uma rota pública onde o AuthProvider ainda não foi inicializado
+  const isPublicRoute = ['/login', '/register', '/forgot-password'].includes(location.pathname);
+  
+  // Hook seguro que verifica se estamos em uma rota pública antes de usar useAuth
+  // Isso evita o erro "useAuth must be used within an AuthProvider"
+  const authContext = !isPublicRoute ? useAuth() : { user: null, signOut: () => Promise.resolve() };
+  const { user, signOut } = authContext;
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
   const handleLogout = async () => {
-    await signOut();
-    navigate('/login');
+    if (signOut) {
+      await signOut();
+      navigate('/login');
+    }
   };
 
   return (
