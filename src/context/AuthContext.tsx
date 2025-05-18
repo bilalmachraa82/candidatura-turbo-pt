@@ -9,12 +9,12 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  isLoading: boolean; // Added for consistency
-  isAuthenticated: boolean; // Added for consistency
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string | { message?: string; status?: number } }>;
-  signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string | { message?: string; status?: number } }>;
+  isLoading: boolean; // Alias para loading para compatibilidade
+  isAuthenticated: boolean; // Flag de conveniência
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: any }>;
+  signUp: (email: string, password: string) => Promise<{ success: boolean; error?: any }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ success: boolean; error?: string | { message?: string; status?: number } }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Bem-vindo de volta!"
       });
       return { success: true };
-    } catch (error: any) {
+    } catch (error) {
       return { success: false, error: error };
     }
   };
@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Verifique o seu email para confirmar a sua conta."
       });
       return { success: true };
-    } catch (error: any) {
+    } catch (error) {
       return { success: false, error: error };
     }
   };
@@ -139,7 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Verifique o seu email para redefinir a sua senha."
       });
       return { success: true };
-    } catch (error: any) {
+    } catch (error) {
       return { success: false, error: error };
     }
   };
@@ -150,8 +150,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         session,
         loading,
-        isLoading: loading, // Added for consistency
-        isAuthenticated: !!user, // Added for consistency
+        isLoading: loading, // Alias para compatibilidade
+        isAuthenticated: !!user, // Flag de conveniência
         signIn,
         signUp,
         signOut,

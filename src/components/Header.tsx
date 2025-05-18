@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,9 +16,7 @@ const Header: React.FC = () => {
   const { toast } = useToast();
   
   // Use optional chaining to safely access auth context
-  const auth = useAuth();
-  const user = auth?.user || null;
-  const loading = auth?.loading || false;
+  const { user, loading, signOut } = useAuth();
   
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -25,14 +24,12 @@ const Header: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      if (auth?.signOut) {
-        await auth.signOut();
-        toast({
-          title: "Sessão terminada",
-          description: "Você foi desconectado com sucesso."
-        });
-        navigate('/login');
-      }
+      await signOut();
+      toast({
+        title: "Sessão terminada",
+        description: "Você foi desconectado com sucesso."
+      });
+      navigate('/login');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
       toast({

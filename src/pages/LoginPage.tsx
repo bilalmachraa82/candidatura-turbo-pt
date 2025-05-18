@@ -16,7 +16,7 @@ const LoginPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
-  const { signIn, user, isLoading, isAuthenticated } = useAuth();
+  const { signIn, user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,7 +26,7 @@ const LoginPage = () => {
   
   // Efeito para redirecionamento automático quando usuário já está autenticado
   useEffect(() => {
-    if (user && !isLoading) {
+    if (user && !loading) {
       console.log('User already authenticated, redirecting to:', from);
       
       // Usar um curto timeout para garantir que o estado de autenticação já foi atualizado
@@ -36,7 +36,7 @@ const LoginPage = () => {
       
       return () => clearTimeout(redirectTimer);
     }
-  }, [user, navigate, from, isLoading]);
+  }, [user, navigate, from, loading]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,15 +66,20 @@ const LoginPage = () => {
         });
       } else {
         console.log('Login failed:', error);
-        let errorMessage = typeof error === 'object' && error !== null && 'message' in error 
-          ? error.message as string
-          : typeof error === 'string' 
-            ? error 
-            : 'Falha na autenticação. Verifique suas credenciais.';
+        let errorMessage = 'Falha na autenticação. Verifique suas credenciais.';
         
-        // Adicionar informações de depuração
-        if (typeof error === 'object' && error !== null && 'status' in error && error.status === 0) {
-          setDebugInfo('Erro de conexão com o serviço Supabase. Possível problema de rede ou CORS.');
+        // Handle different error types
+        if (typeof error === 'object' && error !== null) {
+          if ('message' in error) {
+            errorMessage = error.message as string;
+          }
+          
+          // Add debug info for specific error cases
+          if ('status' in error && error.status === 0) {
+            setDebugInfo('Erro de conexão com o serviço Supabase. Possível problema de rede ou CORS.');
+          }
+        } else if (typeof error === 'string') {
+          errorMessage = error;
         }
         
         setLoginError(errorMessage);
@@ -89,7 +94,7 @@ const LoginPage = () => {
   };
   
   // Mostrar indicador de carregamento enquanto o estado de autenticação está sendo verificado
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center">
@@ -101,7 +106,7 @@ const LoginPage = () => {
   }
   
   // Renderizar o formulário de login apenas se não estiver autenticado
-  if (isAuthenticated) {
+  if (user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center">
