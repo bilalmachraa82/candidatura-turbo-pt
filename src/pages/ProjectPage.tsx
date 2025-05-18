@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
 import UploadForm from '@/components/UploadForm';
-import SectionEditor from '@/components/SectionEditor';
+import SectionEditor from '@/components/section-editor';
 import SidebarPanel from '@/components/SidebarPanel';
 import { supabase } from '@/lib/supabase';
 import { exportDocument } from '@/api/exportDocument';
