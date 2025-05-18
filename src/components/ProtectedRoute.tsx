@@ -13,11 +13,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   requireAuth = true 
 }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
+  
+  // Calculate isAuthenticated based on user presence
+  const isAuthenticated = !!user;
 
   // Mostrar spinner durante o carregamento
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
         <Spinner size="lg" />

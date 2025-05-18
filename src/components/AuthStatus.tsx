@@ -4,9 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 
 const AuthStatus: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Badge variant="outline" className="bg-gray-100">
         Verificando autenticação...

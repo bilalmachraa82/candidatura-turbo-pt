@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,7 @@ const Header: React.FC = () => {
   // Use optional chaining to safely access auth context
   const auth = useAuth();
   const user = auth?.user || null;
-  const isLoading = auth?.isLoading || false;
+  const loading = auth?.loading || false;
   
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -77,7 +76,7 @@ const Header: React.FC = () => {
                 >
                   Contactos
                 </Link>
-                {isLoading ? (
+                {loading ? (
                   <div className="ml-4 text-sm text-gray-500">Carregando...</div>
                 ) : user ? (
                   <Button
@@ -125,7 +124,7 @@ const Header: React.FC = () => {
             >
               Contactos
             </Link>
-            {isLoading ? (
+            {loading ? (
               <div className="px-3 py-2 text-sm text-gray-500">Carregando...</div>
             ) : user ? (
               <Button

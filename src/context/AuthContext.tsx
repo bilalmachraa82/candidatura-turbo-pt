@@ -3,15 +3,18 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  isLoading: boolean; // Added for consistency
+  isAuthenticated: boolean; // Added for consistency
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string | { message?: string; status?: number } }>;
+  signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string | { message?: string; status?: number } }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string | { message?: string; status?: number } }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,7 +69,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           title: "Erro de login",
           description: error.message
         });
-        return { success: false, error: error.message };
+        return { success: false, error: error };
       }
       toast({
         title: "Login bem-sucedido",
@@ -74,7 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error.message };
+      return { success: false, error: error };
     }
   };
 
@@ -88,7 +91,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           title: "Erro no registo",
           description: error.message
         });
-        return { success: false, error: error.message };
+        return { success: false, error: error };
       }
       toast({
         title: "Registo bem-sucedido",
@@ -96,7 +99,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error.message };
+      return { success: false, error: error };
     }
   };
 
@@ -129,7 +132,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           title: "Erro",
           description: error.message
         });
-        return { success: false, error: error.message };
+        return { success: false, error: error };
       }
       toast({
         title: "Email enviado",
@@ -137,7 +140,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error.message };
+      return { success: false, error: error };
     }
   };
 
@@ -147,6 +150,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         session,
         loading,
+        isLoading: loading, // Added for consistency
+        isAuthenticated: !!user, // Added for consistency
         signIn,
         signUp,
         signOut,
@@ -183,5 +188,3 @@ export const ProtectedRoute: React.FC<{ children: ReactNode }> = ({ children }) 
 
   return user ? <>{children}</> : null;
 };
-
-import { useNavigate } from 'react-router-dom';

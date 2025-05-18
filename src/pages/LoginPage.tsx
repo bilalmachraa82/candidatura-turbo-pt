@@ -66,10 +66,14 @@ const LoginPage = () => {
         });
       } else {
         console.log('Login failed:', error);
-        let errorMessage = error?.message || 'Falha na autenticação. Verifique suas credenciais.';
+        let errorMessage = typeof error === 'object' && error !== null && 'message' in error 
+          ? error.message as string
+          : typeof error === 'string' 
+            ? error 
+            : 'Falha na autenticação. Verifique suas credenciais.';
         
         // Adicionar informações de depuração
-        if (error?.status === 0) {
+        if (typeof error === 'object' && error !== null && 'status' in error && error.status === 0) {
           setDebugInfo('Erro de conexão com o serviço Supabase. Possível problema de rede ou CORS.');
         }
         
