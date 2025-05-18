@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/AuthContext';
 import { AIProvider } from '@/context/AIContext';
-import ProtectedRoute from '@/components/ProtectedRoute';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
@@ -30,23 +29,13 @@ function App() {
       <AuthProvider>
         <AIProvider>
           <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            {/* Public routes - temporarily all routes are public */}
+            <Route path="/login" element={<DashboardPage />} /> {/* Redireciona login para dashboard */}
+            <Route path="/register" element={<DashboardPage />} /> {/* Redireciona registro para dashboard */}
+            <Route path="/forgot-password" element={<DashboardPage />} /> {/* Redireciona recuperação de senha para dashboard */}
             <Route path="/contactos" element={<ContactPage />} />
-            
-            {/* Protected routes */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/projetos/:projectId" element={
-              <ProtectedRoute>
-                <ProjectPage />
-              </ProtectedRoute>
-            } />
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/projetos/:projectId" element={<ProjectPage />} />
             
             {/* Fallback for unknown routes */}
             <Route path="*" element={<NotFound />} />

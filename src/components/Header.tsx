@@ -1,35 +1,26 @@
 
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogOut, LogIn, Menu, X } from 'lucide-react';
 import LogoPT2030 from './LogoPT2030';
-import { useAuth } from '@/context/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const isMobile = useIsMobile();
   const location = useLocation();
-  const navigate = useNavigate();
   
-  // Verificar se estamos em uma rota pública onde o AuthProvider ainda não foi inicializado
-  const isPublicRoute = ['/login', '/register', '/forgot-password'].includes(location.pathname);
-  
-  // Hook seguro que verifica se estamos em uma rota pública antes de usar useAuth
-  // Isso evita o erro "useAuth must be used within an AuthProvider"
-  const authContext = !isPublicRoute ? useAuth() : { user: null, signOut: () => Promise.resolve() };
-  const { user, signOut } = authContext;
+  // Removendo a referência ao useAuth por enquanto
+  const user = null; // Simulando usuário não autenticado
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
   const handleLogout = async () => {
-    if (signOut) {
-      await signOut();
-      navigate('/login');
-    }
+    // Função vazia por enquanto
+    console.log('Logout desativado temporariamente');
   };
 
   return (
@@ -76,7 +67,7 @@ const Header: React.FC = () => {
                     Sair
                   </Button>
                 ) : (
-                  <Link to="/login">
+                  <Link to="/">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -125,7 +116,7 @@ const Header: React.FC = () => {
                 Sair
               </Button>
             ) : (
-              <Link to="/login" className="w-full block" onClick={toggleMenu}>
+              <Link to="/" className="w-full block" onClick={toggleMenu}>
                 <Button
                   variant="ghost"
                   size="sm"
