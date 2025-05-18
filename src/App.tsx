@@ -17,8 +17,7 @@ function App() {
   if (typeof window !== 'undefined') {
     // Em vez de tentar redefinir 'plausible', apenas adicionamos uma
     // função stub se não existir ainda
-    if (!window.hasOwnProperty('plausible') || typeof window.plausible !== 'function') {
-      // @ts-ignore - definindo stub function
+    if (!('plausible' in window) || typeof window.plausible !== 'function') {
       window.plausible = function() {
         // Função vazia e silenciosa
         return;
