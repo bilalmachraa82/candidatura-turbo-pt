@@ -29,15 +29,17 @@ function App() {
       <AuthProvider>
         <AIProvider>
           <Routes>
-            {/* Public routes - temporarily all routes are public */}
-            <Route path="/login" element={<DashboardPage />} /> {/* Redireciona login para dashboard */}
-            <Route path="/register" element={<DashboardPage />} /> {/* Redireciona registro para dashboard */}
-            <Route path="/forgot-password" element={<DashboardPage />} /> {/* Redireciona recuperação de senha para dashboard */}
+            {/* Rotas públicas */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/contactos" element={<ContactPage />} />
+            
+            {/* Rotas que podem ser acessadas com ou sem autenticação */}
             <Route path="/" element={<DashboardPage />} />
             <Route path="/projetos/:projectId" element={<ProjectPage />} />
             
-            {/* Fallback for unknown routes */}
+            {/* Fallback para rotas desconhecidas */}
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

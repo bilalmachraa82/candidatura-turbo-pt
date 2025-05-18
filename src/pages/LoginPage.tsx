@@ -10,28 +10,16 @@ import { useAuth } from '@/context/AuthContext';
 import LogoPT2030 from '@/components/LogoPT2030';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
-// Contador para prevenir loops infinitos
-let loginAttempts = 0;
-const MAX_LOGIN_ATTEMPTS = 5;
-
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const { signIn, user, isLoading } = useAuth();
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const { signIn, user, isLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Resetar contador de tentativas após 5 minutos
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loginAttempts = 0;
-    }, 5 * 60 * 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
   
   // Obter o caminho que o usuário estava tentando acessar, ou padrão para home
   const from = location.state?.from || '/';
@@ -54,14 +42,10 @@ const LoginPage = () => {
     e.preventDefault();
     
     if (isSubmitting) return;
-    if (loginAttempts >= MAX_LOGIN_ATTEMPTS) {
-      setLoginError("Muitas tentativas de login. Tente novamente mais tarde.");
-      return;
-    }
     
-    loginAttempts++;
     setIsSubmitting(true);
     setLoginError(null);
+    setDebugInfo(null);
     
     try {
       if (!email || !password) {
@@ -70,18 +54,31 @@ const LoginPage = () => {
         return;
       }
       
+      console.log('Attempting login with:', email);
       const { success, error } = await signIn(email, password);
       
       if (success) {
         console.log('Login successful');
         // Não redirecionamos aqui - deixamos o efeito useEffect fazer isso
+        toast({
+          title: "Login bem-sucedido",
+          description: "Redirecionando para o dashboard..."
+        });
       } else {
         console.log('Login failed:', error);
-        setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
+        let errorMessage = error?.message || 'Falha na autenticação. Verifique suas credenciais.';
+        
+        // Adicionar informações de depuração
+        if (error?.status === 0) {
+          setDebugInfo('Erro de conexão com o serviço Supabase. Possível problema de rede ou CORS.');
+        }
+        
+        setLoginError(errorMessage);
       }
     } catch (error: any) {
       console.error('Exception during login:', error);
       setLoginError('Erro ao conectar ao serviço. Verifique sua conexão com a internet.');
+      setDebugInfo(`Erro técnico: ${error.toString()}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -100,12 +97,12 @@ const LoginPage = () => {
   }
   
   // Renderizar o formulário de login apenas se não estiver autenticado
-  if (user) {
+  if (isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center">
           <Loader2 className="h-12 w-12 animate-spin text-pt-green mb-4" />
-          <p className="text-gray-600">A redirecionar...</p>
+          <p className="text-gray-600">Já está autenticado. A redirecionar...</p>
         </div>
       </div>
     );
@@ -130,6 +127,13 @@ const LoginPage = () => {
             <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-3 mb-4 flex items-start">
               <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
               <span>{loginError}</span>
+            </div>
+          )}
+          
+          {debugInfo && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-3 mb-4 text-sm">
+              <p className="font-medium">Informações de depuração:</p>
+              <p>{debugInfo}</p>
             </div>
           )}
           
@@ -173,7 +177,7 @@ const LoginPage = () => {
             <Button
               type="submit"
               className="w-full bg-pt-green hover:bg-pt-green/90"
-              disabled={isSubmitting || loginAttempts >= MAX_LOGIN_ATTEMPTS}
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>
@@ -183,6 +187,23 @@ const LoginPage = () => {
               ) : "Entrar"}
             </Button>
           </form>
+          
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => {
+                navigate("/");
+                toast({
+                  title: "Acesso como visitante",
+                  description: "Você está acessando a aplicação sem autenticação."
+                });
+              }}
+            >
+              Continuar como visitante
+            </Button>
+          </div>
         </CardContent>
         <CardFooter className="flex justify-center border-t p-4">
           <p className="text-sm text-gray-600">

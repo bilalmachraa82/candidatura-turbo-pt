@@ -17,9 +17,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Flag para controlar se já configuramos a subscrição de auth
-let hasSetupAuthListener = false;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -29,45 +26,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Flag para garantir que só limpamos a função uma vez
     let mounted = true;
-    let authSubscription: { unsubscribe: () => void } | null = null;
     
     const initializeAuth = async () => {
       try {
-        // Se já configuramos a subscrição antes, não configurar novamente
-        if (!hasSetupAuthListener) {
-          hasSetupAuthListener = true;
-          
-          // Configurar a subscrição de alteração de estado de autenticação apenas uma vez
-          const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
-            if (!mounted) return;
-            
-            console.log(`Auth state changed: ${event}`, newSession?.user?.email || 'no user');
-            
-            setSession(newSession);
-            setUser(newSession?.user ?? null);
-            
-            if (isLoading) {
-              setIsLoading(false);
-            } else {
-              if (event === 'SIGNED_IN') {
-                toast({
-                  title: "Login bem-sucedido",
-                  description: `Bem-vindo, ${newSession?.user?.email}`
-                });
-              } else if (event === 'SIGNED_OUT') {
-                toast({
-                  title: "Sessão terminada",
-                  description: "Você foi desconectado com sucesso."
-                });
-              }
-            }
-          });
-          
-          authSubscription = data.subscription;
+        // Verificar conexão com o Supabase
+        try {
+          await supabase.from('_health').select('*').limit(1);
+          console.log('Supabase connection test successful');
+        } catch (connectionError) {
+          console.error('Supabase connection test failed:', connectionError);
         }
         
+        // Configurar a subscrição de alteração de estado de autenticação
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+          if (!mounted) return;
+          
+          console.log(`Auth state changed: ${event}`, newSession?.user?.email || 'no user');
+          
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          
+          if (isLoading) {
+            setIsLoading(false);
+          } else {
+            if (event === 'SIGNED_IN') {
+              toast({
+                title: "Login bem-sucedido",
+                description: `Bem-vindo, ${newSession?.user?.email}`
+              });
+            } else if (event === 'SIGNED_OUT') {
+              toast({
+                title: "Sessão terminada",
+                description: "Você foi desconectado com sucesso."
+              });
+            }
+          }
+        });
+        
         // Verificar a sessão existente apenas uma vez durante a inicialização
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error fetching session:', error);
+        }
         
         if (mounted) {
           setSession(data.session);
@@ -87,14 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Limpar ao desmontar componente
     return () => {
       mounted = false;
-      // Não desinscrever a subscrição global de auth - isso causaria problemas
-      // Se precisar desinscrever, faça isso apenas quando a aplicação fechar completamente
     };
   }, [toast]);
   
   // Implementar funções de autenticação com melhor tratamento de erros
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting signIn with Supabase for:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -209,7 +209,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    console.warn('useAuth was called outside of AuthProvider - returning default values');
+    return {
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: false,
+      signIn: async () => ({ success: false, error: null }),
+      signUp: async () => ({ success: false, error: null }),
+      signOut: async () => {},
+      resetPassword: async () => ({ success: false, error: null }),
+    };
   }
   return context;
 }

@@ -1,26 +1,47 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogOut, LogIn, Menu, X } from 'lucide-react';
 import LogoPT2030 from './LogoPT2030';
+import { useAuth } from '@/context/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const isMobile = useIsMobile();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
-  // Removendo a referência ao useAuth por enquanto
-  const user = null; // Simulando usuário não autenticado
-
+  // Use optional chaining to safely access auth context
+  const auth = useAuth();
+  const user = auth?.user || null;
+  const isLoading = auth?.isLoading || false;
+  
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
   const handleLogout = async () => {
-    // Função vazia por enquanto
-    console.log('Logout desativado temporariamente');
+    try {
+      if (auth?.signOut) {
+        await auth.signOut();
+        toast({
+          title: "Sessão terminada",
+          description: "Você foi desconectado com sucesso."
+        });
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao sair",
+        description: "Não foi possível encerrar a sessão."
+      });
+    }
   };
 
   return (
@@ -56,7 +77,9 @@ const Header: React.FC = () => {
                 >
                   Contactos
                 </Link>
-                {user ? (
+                {isLoading ? (
+                  <div className="ml-4 text-sm text-gray-500">Carregando...</div>
+                ) : user ? (
                   <Button
                     onClick={handleLogout}
                     variant="ghost"
@@ -67,7 +90,7 @@ const Header: React.FC = () => {
                     Sair
                   </Button>
                 ) : (
-                  <Link to="/">
+                  <Link to="/login">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -102,7 +125,9 @@ const Header: React.FC = () => {
             >
               Contactos
             </Link>
-            {user ? (
+            {isLoading ? (
+              <div className="px-3 py-2 text-sm text-gray-500">Carregando...</div>
+            ) : user ? (
               <Button
                 onClick={() => {
                   handleLogout();
@@ -116,7 +141,7 @@ const Header: React.FC = () => {
                 Sair
               </Button>
             ) : (
-              <Link to="/" className="w-full block" onClick={toggleMenu}>
+              <Link to="/login" className="w-full block" onClick={toggleMenu}>
                 <Button
                   variant="ghost"
                   size="sm"
