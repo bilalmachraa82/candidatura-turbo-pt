@@ -49,6 +49,13 @@ export interface ProjectSection {
 }
 
 // AI generation types
+export interface GenerationOptions {
+  projectId: string;
+  section: string;
+  charLimit?: number;
+  model?: string;
+}
+
 export interface GenerationSource {
   id: string;
   name: string;
@@ -57,9 +64,11 @@ export interface GenerationSource {
 }
 
 export interface GenerationResult {
+  success: boolean;
   text: string;
   charsUsed: number;
   sources: GenerationSource[];
+  error?: string;
 }
 
 // Export types
@@ -87,7 +96,7 @@ export interface UploadedFile {
 
 export interface IndexingResult {
   success: boolean;
-  documentId?: string; // Add this missing property
+  documentId?: string;
   message: string;
   file?: {
     id: string;

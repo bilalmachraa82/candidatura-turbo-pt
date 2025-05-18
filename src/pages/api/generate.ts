@@ -55,7 +55,10 @@ export async function handler(req: Request) {
     
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'Erro desconhecido'
+      error: error.message || 'Erro desconhecido',
+      text: '',
+      charsUsed: 0,
+      sources: []
     }), {
       status: 500,
       headers: {

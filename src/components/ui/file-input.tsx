@@ -5,10 +5,11 @@ import { cn } from '@/lib/utils';
 export interface FileInputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
   asChild?: boolean;
+  buttonLabel?: string; // Add this prop
 }
 
 const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, buttonLabel = "Choose file", ...props }, ref) => {
     return (
       <input
         type="file"

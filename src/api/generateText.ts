@@ -14,10 +14,10 @@ export async function generateText(options: GenerationOptions): Promise<Generati
       console.warn('FLOWISE_URL não está configurado no ambiente');
       return {
         success: false,
-        error: 'Serviço de geração não configurado. Adicione FLOWISE_URL ao .env',
         text: '',
         charsUsed: 0,
-        sources: []
+        sources: [],
+        error: 'Serviço de geração não configurado. Adicione FLOWISE_URL ao .env'
       };
     }
 
@@ -114,10 +114,10 @@ export async function generateText(options: GenerationOptions): Promise<Generati
     console.error('Erro na geração de texto:', error);
     return {
       success: false,
-      error: error.message || 'Erro desconhecido na geração de texto',
       text: '',
       charsUsed: 0,
-      sources: []
+      sources: [],
+      error: error.message || 'Erro desconhecido na geração de texto'
     };
   }
 }
