@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
@@ -24,21 +25,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     console.log('AuthProvider initialized');
+    let mounted = true;
     
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!mounted) return;
+      
       console.log('Auth state changed:', event, newSession?.user?.email || 'no user');
       
       setSession(newSession);
       setUser(newSession?.user ?? null);
       
-      if (event === 'SIGNED_IN') {
+      // Only show toast for significant auth events and avoid showing during initial load
+      if (event === 'SIGNED_IN' && !isLoading) {
         console.log('User signed in:', newSession?.user?.email);
         toast({
           title: "Login bem-sucedido",
           description: `Bem-vindo, ${newSession?.user?.email}`
         });
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT' && !isLoading) {
         console.log('User signed out');
         toast({
           title: "Sessão terminada",
@@ -50,7 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Then check for an existing session
     const checkExistingSession = async () => {
       try {
-        setIsLoading(true);
+        if (!mounted) return;
+        
         console.log('Checking existing session...');
         
         const { data, error } = await supabase.auth.getSession();
@@ -62,23 +68,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         console.log('Existing session check result:', data.session ? 'Session found' : 'No session');
         
-        setSession(data.session);
-        setUser(data.session?.user ?? null);
+        if (mounted) {
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Session initialization error:', error);
-      } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
     
     checkExistingSession();
     
-    // Cleanup subscription on unmount
+    // Cleanup subscription and set mounted flag to false on unmount
     return () => {
       console.log('Cleaning up auth subscription');
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, [toast]);
+  }, [toast]); // Only depend on toast to avoid re-running this effect
 
   const signIn = async (email: string, password: string) => {
     try {

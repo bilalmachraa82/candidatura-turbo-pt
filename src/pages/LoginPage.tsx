@@ -29,7 +29,12 @@ const LoginPage = () => {
     if (user && !authLoading && !hasNavigated) {
       console.log('User already authenticated, redirecting to:', from);
       setHasNavigated(true);
-      navigate(from, { replace: true });
+      // Use a small timeout to ensure state updates have processed
+      const redirectTimer = setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 100);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [user, navigate, from, authLoading, hasNavigated]);
 
@@ -54,7 +59,11 @@ const LoginPage = () => {
       if (success) {
         console.log('Login successful, will redirect to:', from);
         setHasNavigated(true);
-        navigate(from, { replace: true });
+        
+        // Use a small timeout to ensure the auth state has been updated
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 200);
       } else {
         console.error('Login failed:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');

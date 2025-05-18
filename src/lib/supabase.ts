@@ -1,35 +1,35 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Fixed Supabase URLs and keys - using constants for consistency
+// Supabase URLs e chaves
 const supabaseUrl = 'https://sapyhkbmrscensguyzbt.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhcHloa2JtcnNjZW5zZ3V5emJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcxNTI2NzAsImV4cCI6MjA2MjcyODY3MH0.fQqkmTLWQGgtpYm85UY97fuRV34_-kA8NGk16rDOilI';
 
-// Create a single Supabase client instance for the entire app
+// Cria uma única instância do cliente Supabase para toda a aplicação
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     storageKey: 'pt2030-auth-storage',
-    detectSessionInUrl: true,
+    detectSessionInUrl: false, // Alterar para false para evitar problemas com redirecionamento
     flowType: 'pkce',
   }
 });
 
-// Helper function to check login status
+// Função auxiliar para verificar o estado de login
 export const isUserLoggedIn = async () => {
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
-      console.error('Error checking login status:', error.message);
+      console.error('Erro ao verificar estado de login:', error.message);
       return false;
     }
     return !!session;
   } catch (error) {
-    console.error('Exception checking login status:', error);
+    console.error('Exceção ao verificar estado de login:', error);
     return false;
   }
 };
 
-// Export the types needed for authentication
+// Exportar os tipos necessários para autenticação
 export type { User, Session } from '@supabase/supabase-js';

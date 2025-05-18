@@ -13,6 +13,13 @@ import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
 
 function App() {
+  // Desabilitar rastreamento Plausible quando não está configurado
+  // Isso resolve o erro de conexão recusada para plausible.io
+  if (typeof window !== 'undefined') {
+    // @ts-ignore
+    window.plausible = () => {}; // Função nula para evitar erros
+  }
+  
   return (
     <Router>
       <AuthProvider>
