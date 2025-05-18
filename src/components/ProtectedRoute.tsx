@@ -13,8 +13,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   
   useEffect(() => {
-    console.log("ProtectedRoute - isLoading:", isLoading, "user:", !!user);
-  }, [isLoading, user]);
+    console.log("ProtectedRoute state - isLoading:", isLoading, "user:", !!user, "path:", location.pathname);
+  }, [isLoading, user, location.pathname]);
 
   // Show a loading indicator while we're checking authentication state
   if (isLoading) {
@@ -28,11 +28,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // If not authenticated, redirect to login while preserving the intended destination
   if (!user) {
-    console.log("Utilizador não autenticado, redirecionando para login");
+    console.log("User not authenticated, redirecting to login from:", location.pathname);
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   // User is authenticated, render the children
+  console.log("User is authenticated, rendering protected content");
   return <>{children}</>;
 };
 

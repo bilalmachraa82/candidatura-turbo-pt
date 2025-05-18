@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,17 +21,17 @@ const LoginPage = () => {
   const location = useLocation();
   const from = location.state?.from || '/';
   
-  // Use a ref to track if navigation has been attempted
-  const navigationAttempted = useRef(false);
+  // Track if we've already attempted navigation to avoid loops
+  const [hasNavigated, setHasNavigated] = useState(false);
   
   // Redirect if already authenticated
   useEffect(() => {
-    if (user && !authLoading && !navigationAttempted.current) {
-      console.log('Utilizador já autenticado, redirecionando para a página inicial');
-      navigationAttempted.current = true;
+    if (user && !authLoading && !hasNavigated) {
+      console.log('User already authenticated, redirecting to:', from);
+      setHasNavigated(true);
       navigate(from, { replace: true });
     }
-  }, [user, navigate, from, authLoading]);
+  }, [user, navigate, from, authLoading, hasNavigated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +41,7 @@ const LoginPage = () => {
     setLoginError(null);
 
     try {
-      console.log('Tentando login com:', { email });
+      console.log('Attempting login with:', { email });
       
       if (!email || !password) {
         setLoginError('Email e senha são obrigatórios');
@@ -52,15 +52,15 @@ const LoginPage = () => {
       const { success, error } = await signIn(email, password);
       
       if (success) {
-        console.log('Login bem-sucedido, redirecionando...');
-        navigationAttempted.current = true;
+        console.log('Login successful, will redirect to:', from);
+        setHasNavigated(true);
         navigate(from, { replace: true });
       } else {
-        console.error('Falha no login:', error);
+        console.error('Login failed:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
       }
     } catch (error: any) {
-      console.error('Exceção durante login:', error);
+      console.error('Exception during login:', error);
       setLoginError('Erro ao conectar ao serviço. Verifique sua conexão com a internet.');
     } finally {
       setIsSubmitting(false);
