@@ -15,28 +15,21 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const { signIn, user, isLoading: authLoading } = useAuth();
+  const { signIn, user, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Get the path the user was trying to access, or default to home
   const from = location.state?.from || '/';
   
-  // Track if we've already attempted navigation to avoid loops
-  const [hasNavigated, setHasNavigated] = useState(false);
-  
-  // Redirect if already authenticated
+  // Effect for automatic redirection when user is already authenticated
   useEffect(() => {
-    if (user && !authLoading && !hasNavigated) {
+    if (user && !isLoading) {
       console.log('User already authenticated, redirecting to:', from);
-      setHasNavigated(true);
-      // Use a small timeout to ensure state updates have processed
-      const redirectTimer = setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 100);
-      
-      return () => clearTimeout(redirectTimer);
+      navigate(from, { replace: true });
     }
-  }, [user, navigate, from, authLoading, hasNavigated]);
+  }, [user, navigate, from, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +39,6 @@ const LoginPage = () => {
     setLoginError(null);
 
     try {
-      console.log('Attempting login with:', { email });
-      
       if (!email || !password) {
         setLoginError('Email e senha são obrigatórios');
         setIsSubmitting(false);
@@ -57,13 +48,12 @@ const LoginPage = () => {
       const { success, error } = await signIn(email, password);
       
       if (success) {
-        console.log('Login successful, will redirect to:', from);
-        setHasNavigated(true);
+        console.log('Login successful, redirecting to:', from);
         
-        // Use a small timeout to ensure the auth state has been updated
+        // Use a short timeout to ensure the auth state has been updated
         setTimeout(() => {
           navigate(from, { replace: true });
-        }, 200);
+        }, 100);
       } else {
         console.error('Login failed:', error);
         setLoginError(error?.message || 'Falha na autenticação. Verifique suas credenciais.');
@@ -76,7 +66,8 @@ const LoginPage = () => {
     }
   };
 
-  if (authLoading) {
+  // Show loading indicator while authentication state is being checked
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center">

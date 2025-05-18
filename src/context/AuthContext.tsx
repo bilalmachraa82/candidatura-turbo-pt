@@ -24,7 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('AuthProvider initialized');
     let mounted = true;
     
     // Set up auth state listener first
@@ -36,19 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       
-      // Only show toast for significant auth events and avoid showing during initial load
-      if (event === 'SIGNED_IN' && !isLoading) {
-        console.log('User signed in:', newSession?.user?.email);
-        toast({
-          title: "Login bem-sucedido",
-          description: `Bem-vindo, ${newSession?.user?.email}`
-        });
-      } else if (event === 'SIGNED_OUT' && !isLoading) {
-        console.log('User signed out');
-        toast({
-          title: "Sessão terminada",
-          description: "Você foi desconectado com sucesso."
-        });
+      if (!isLoading) {
+        if (event === 'SIGNED_IN') {
+          console.log('User signed in:', newSession?.user?.email);
+          toast({
+            title: "Login bem-sucedido",
+            description: `Bem-vindo, ${newSession?.user?.email}`
+          });
+        } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+          toast({
+            title: "Sessão terminada",
+            description: "Você foi desconectado com sucesso."
+          });
+        }
       }
     });
     
@@ -63,7 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (error) {
           console.error('Error fetching session:', error.message);
-          throw error;
+          setIsLoading(false);
+          return;
         }
         
         console.log('Existing session check result:', data.session ? 'Session found' : 'No session');
@@ -85,15 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Cleanup subscription and set mounted flag to false on unmount
     return () => {
-      console.log('Cleaning up auth subscription');
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [toast]); // Only depend on toast to avoid re-running this effect
+  }, [toast]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
       console.log('Attempting sign in for:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -121,8 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Ocorreu um erro inesperado. Tente novamente."
       });
       return { success: false, error };
-    } finally {
-      setIsLoading(false);
     }
   };
 

@@ -11,22 +11,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     storageKey: 'pt2030-auth-storage',
-    detectSessionInUrl: false, // Alterar para false para evitar problemas com redirecionamento
-    flowType: 'pkce',
+    detectSessionInUrl: false,
   }
 });
 
 // Função auxiliar para verificar o estado de login
 export const isUserLoggedIn = async () => {
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) {
-      console.error('Erro ao verificar estado de login:', error.message);
-      return false;
-    }
+    const { data: { session } } = await supabase.auth.getSession();
     return !!session;
   } catch (error) {
-    console.error('Exceção ao verificar estado de login:', error);
+    console.error('Erro ao verificar estado de login:', error);
     return false;
   }
 };
