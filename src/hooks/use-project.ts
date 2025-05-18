@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { UploadedFile, ProjectSection } from '@/types/components';
+import { indexDocument } from '@/api/indexDocuments';
+import { GenerationSource } from '@/types/api';
 
 interface UseProjectProps {
   projectId: string | undefined;
@@ -17,6 +19,8 @@ export function useProject({ projectId }: UseProjectProps) {
   const [totalCharLimit, setTotalCharLimit] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isIndexing, setIsIndexing] = useState(false);
+  const [indexed, setIndexed] = useState(false);
   const { toast } = useToast();
 
   // Calculate total character usage across all sections
@@ -139,7 +143,8 @@ export function useProject({ projectId }: UseProjectProps) {
           .select('*')
           .eq('project_id', projectId);
 
-        if (!filesError && filesData) {
+        if (!filesError && filesData && filesData.length > 0) {
+          setIndexed(true);
           setFiles(filesData.map(f => ({
             id: f.id,
             name: f.file_name,
@@ -164,7 +169,7 @@ export function useProject({ projectId }: UseProjectProps) {
     }
   };
 
-  const handleFileUploaded = (file: {name: string, url: string, type: string}) => {
+  const handleFileUploaded = async (file: {name: string, url: string, type: string}) => {
     const newFile: UploadedFile = {
       id: Date.now().toString(),
       name: file.name,
@@ -174,6 +179,46 @@ export function useProject({ projectId }: UseProjectProps) {
     };
     
     setFiles(prev => [...prev, newFile]);
+
+    // After file is uploaded, index it
+    await indexFileForRAG(file);
+  };
+
+  // New function to handle indexing file for RAG
+  const indexFileForRAG = async (file: {name: string, url: string, type: string}) => {
+    if (!projectId) return;
+    
+    setIsIndexing(true);
+    
+    try {
+      // Get the file from the URL
+      const fileResponse = await fetch(file.url);
+      const fileBlob = await fileResponse.blob();
+      const fileObject = new File([fileBlob], file.name, { type: file.type });
+      
+      // Call the indexDocument function
+      const indexResult = await indexDocument(projectId, fileObject);
+      
+      if (indexResult.success) {
+        setIndexed(true);
+        toast({
+          title: "Indexação concluída",
+          description: "O documento foi indexado com sucesso para RAG."
+        });
+      } else {
+        throw new Error(indexResult.message);
+      }
+      
+    } catch (error: any) {
+      console.error("Error indexing file for RAG:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro na indexação",
+        description: error.message || "Não foi possível indexar o documento."
+      });
+    } finally {
+      setIsIndexing(false);
+    }
   };
 
   const handleSectionTextChange = (sectionId: string, newText: string) => {
@@ -219,6 +264,8 @@ export function useProject({ projectId }: UseProjectProps) {
     isExporting,
     setIsExporting,
     isLoading,
+    isIndexing,
+    indexed,
     handleFileUploaded,
     handleSectionTextChange,
     handleSourcesUpdate

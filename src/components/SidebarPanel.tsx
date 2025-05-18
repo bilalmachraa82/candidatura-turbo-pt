@@ -22,15 +22,15 @@ const SidebarPanel: React.FC<SidebarPanelProps> = ({
 }) => {
   const usagePercentage = Math.round((charsUsed / charLimit) * 100);
   
-  // Configurar a cor da barra de progresso
+  // Configure progress bar color based on usage
   let progressColor = "bg-green-500";
-  if (usagePercentage > 90) {
+  if (usagePercentage > 100) {
     progressColor = "bg-red-500";
-  } else if (usagePercentage > 75) {
+  } else if (usagePercentage > 90) {
     progressColor = "bg-yellow-500";
   }
   
-  // Status da base de conhecimento
+  // Knowledge base status information
   const ragStatusInfo = {
     low: {
       label: 'Poucos documentos',
@@ -59,7 +59,7 @@ const SidebarPanel: React.FC<SidebarPanelProps> = ({
           <CardTitle className="text-lg font-medium">Estatísticas do Projeto</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Uso de caracteres */}
+          {/* Character usage statistics */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-sm">
               <span className="font-medium">Uso de caracteres</span>
@@ -68,7 +68,12 @@ const SidebarPanel: React.FC<SidebarPanelProps> = ({
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className={`h-full ${progressColor} transition-all`}
-                style={{ width: `${usagePercentage}%` }}
+                style={{ width: `${Math.min(100, usagePercentage)}%` }}
+                aria-label={`${usagePercentage}% de caracteres utilizados`}
+                role="progressbar"
+                aria-valuenow={usagePercentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
               ></div>
             </div>
             <p className="text-xs text-gray-500">
@@ -76,7 +81,7 @@ const SidebarPanel: React.FC<SidebarPanelProps> = ({
             </p>
           </div>
           
-          {/* Status da base de conhecimento */}
+          {/* Knowledge base status */}
           <div className="space-y-2 pt-2">
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Base de Conhecimento</span>
@@ -92,17 +97,17 @@ const SidebarPanel: React.FC<SidebarPanelProps> = ({
         </CardContent>
       </Card>
       
-      {/* Fontes utilizadas */}
+      {/* Sources used in generation */}
       {sources.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-medium">Fontes Utilizadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-3">
+            <ul className="space-y-3" aria-label="Lista de fontes utilizadas">
               {sources.map((source) => (
                 <li key={source.id} className="flex items-start space-x-2">
-                  <FileText className="h-4 w-4 text-pt-blue mt-0.5" />
+                  <FileText className="h-4 w-4 text-pt-blue mt-0.5" aria-hidden="true" />
                   <div>
                     <p className="text-sm font-medium">{source.name}</p>
                     <p className="text-xs text-gray-500">{source.reference}</p>

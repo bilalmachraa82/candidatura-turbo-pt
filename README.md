@@ -1,101 +1,86 @@
 
-# Candidaturas PT2030
+# Candidaturas PT2030 - Aplicação de Gestão de Candidaturas
 
-Aplicação para auxiliar na geração e gestão de candidaturas a fundos PT2030 utilizando Supabase, React e IA generativa.
+Esta aplicação facilita a criação, gestão e submissão de candidaturas para programas PT2030, utilizando inteligência artificial para geração assistida de conteúdos.
 
-## 🚀 Principais Funcionalidades
+## Funcionalidades
 
-- **Autenticação Segura**: Sistema completo de login/registro utilizando Supabase Auth.
-- **Gestão de Projetos**: Criação e gerenciamento de projetos de candidatura.
-- **Indexação de Documentos**: Upload e processamento de documentos (PDFs, Word, Excel) utilizando pgvector.
-- **Geração de Texto com IA**: Utilização do Flowise para gerar seções de documentos baseadas em contexto.
-- **RAG (Retrieval Augmented Generation)**: Integração com documentos indexados para gerar conteúdo contextualizado.
-- **Exportação de Documentos**: Exportação de candidaturas em PDF e DOCX.
+- **Autenticação segura** via Supabase
+- **Upload de documentos** e indexação para RAG (Retrieval Augmented Generation)
+- **Geração de texto assistida** por IA usando Flowise
+- **Exportação de dossiês** em PDF e DOCX
+- **Interface responsiva** com WCAG AA compliance
 
-## 🛠️ Tecnologias Utilizadas
+## Requisitos
 
-- **Frontend**: React, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Supabase (Auth, Storage, Database), Flowise (IA)
-- **Vectorização**: pgvector no Supabase
-- **Deployment**: Railway
-
-## 🔧 Instalação e Configuração
-
-### Pré-requisitos
-
-- Node.js (v18+)
+- Node.js 16+
 - npm ou yarn
-- Conta no Supabase
-- Instância Flowise (opcional)
+- Conta Supabase (gratuita)
+- Endpoint Flowise configurado
 
-### Configuração
+## Como iniciar
 
-1. Clone o repositório:
+1. Clone o repositório
 ```bash
 git clone https://github.com/seu-usuario/candidaturas-pt2030.git
 cd candidaturas-pt2030
 ```
 
-2. Instale as dependências:
+2. Instale as dependências
 ```bash
 npm install
-# ou
-yarn
 ```
 
-3. Copie o arquivo `.env.local.example` para `.env.local` e preencha os valores:
-```bash
-cp .env.local.example .env.local
+3. Configure as variáveis de ambiente
+Crie um arquivo `.env.local` com as seguintes variáveis:
+```
+VITE_SUPABASE_URL=sua_url_supabase
+VITE_SUPABASE_ANON_KEY=sua_chave_anon_supabase
+VITE_FLOWISE_URL=sua_url_flowise
+VITE_FLOWISE_API_KEY=sua_chave_api_flowise
 ```
 
-4. Configure suas variáveis de ambiente:
-- `VITE_SUPABASE_URL`: URL do seu projeto Supabase
-- `VITE_SUPABASE_ANON_KEY`: Chave anônima do Supabase
-- `VITE_FLOWISE_URL`: URL da instância Flowise (opcional)
-- `VITE_FLOWISE_API_KEY`: API Key do Flowise (opcional)
-
-5. Inicie o servidor de desenvolvimento:
+4. Inicie o servidor de desenvolvimento
 ```bash
 npm run dev
-# ou
-yarn dev
 ```
 
-### Configuração do Supabase
-
-1. Crie um novo projeto no Supabase
-2. Execute as migrações necessárias de banco de dados (consulte a pasta `supabase/migrations`)
-3. Configure a autenticação conforme necessário
-
-## 🚀 Deployment
-
-### Railway
-
-1. Conecte seu repositório Git ao Railway
-2. Configure as variáveis de ambiente necessárias
-3. Deploy automático a partir das configurações no arquivo `railway.toml`
-
-## 📝 Estrutura do Projeto
-
-```
-/src
-  /api          # Funções para chamadas de API
-  /components   # Componentes React reutilizáveis
-  /context      # Contextos React (Auth, AI, etc.)
-  /hooks        # Custom hooks
-  /lib          # Bibliotecas e utilitários
-  /pages        # Componentes de página
-  /types        # Definições de tipos TypeScript
-  /utils        # Funções utilitárias
+5. Deploy para produção via Railway
+```bash
+railway up
 ```
 
-## 📚 Documentação Adicional
+## Estrutura do Projeto
 
-- [Supabase](https://supabase.com/docs)
-- [pgvector](https://github.com/pgvector/pgvector)
-- [Flowise](https://docs.flowiseai.com/)
-- [Railway](https://docs.railway.app/)
+- `/src/components` - Componentes React reutilizáveis
+- `/src/pages` - Páginas da aplicação
+- `/src/hooks` - Custom React hooks
+- `/src/context` - Contextos React (Auth, AI, etc.)
+- `/src/api` - Funções de interface com APIs externas
+- `/src/lib` - Bibliotecas e utilitários
+- `/src/types` - Definições de tipos TypeScript
 
-## 📄 Licença
+## Tecnologias
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo LICENSE para mais detalhes.
+- Next.js + React
+- TypeScript
+- Tailwind CSS
+- Supabase (Auth, Storage, Vector DB)
+- Flowise AI
+- Railway (deploy)
+
+## Configuração do Supabase
+
+1. Crie um projeto no [Supabase](https://supabase.com)
+2. Configure as tabelas necessárias (projetos, secções, ficheiros indexados)
+3. Habilite autenticação por email
+4. Configure o bucket de storage para documentos
+
+## Contribuição
+
+Para contribuir, por favor:
+1. Faça um fork do repositório
+2. Crie uma branch para a sua feature (`git checkout -b feature/nova-funcionalidade`)
+3. Commit suas mudanças (`git commit -am 'Adiciona nova funcionalidade'`)
+4. Push para a branch (`git push origin feature/nova-funcionalidade`)
+5. Crie um novo Pull Request

@@ -1,14 +1,10 @@
 
+import { ExportResult } from '@/types/api';
+
 interface ExportOptions {
   format: 'pdf' | 'docx';
   includeAttachments?: boolean;
   language?: 'pt' | 'en';
-}
-
-interface ExportResult {
-  success: boolean;
-  url?: string;
-  error?: string;
 }
 
 export async function exportDocument(
@@ -17,48 +13,55 @@ export async function exportDocument(
   options?: Partial<ExportOptions>
 ): Promise<ExportResult> {
   try {
-    // Em produção, chamaríamos uma Edge Function do Supabase:
-    // const { data, error } = await supabase.functions.invoke('export-document', { 
-    //   body: { 
-    //     projectId, 
-    //     format,
-    //     ...options 
-    //   } 
-    // });
+    // Get environment variables
+    const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL;
+    const FLOWISE_API_KEY = import.meta.env.VITE_FLOWISE_API_KEY;
 
-    // Simulação para POC
-    console.log(`Exportando projeto ${projectId} no formato ${format}`, options);
+    if (!FLOWISE_URL) {
+      throw new Error('FLOWISE_URL não está configurado');
+    }
+
+    // Build query params
+    const params = new URLSearchParams({
+      projectId,
+      format
+    });
     
-    // Simular tempo de processamento
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Add optional params
+    if (options?.includeAttachments) {
+      params.append('attachments', options.includeAttachments.toString());
+    }
     
-    // Em produção, retornaríamos uma URL para o arquivo gerado
-    const mockUrl = `https://example.com/exports/project-${projectId}.${format}`;
+    if (options?.language) {
+      params.append('lang', options.language);
+    }
+
+    // Make request to the export API
+    const response = await fetch(`${FLOWISE_URL}/export?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${FLOWISE_API_KEY}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Error ${response.status}`);
+    }
+
+    const result = await response.json();
     
     return {
-      success: true,
-      url: mockUrl
+      success: result.success,
+      url: result.url,
+      fileName: `projeto-${projectId}.${format}`,
+      format,
+      sections: result.sections || 0,
+      attachments: result.attachments || 0,
+      metadata: result.metadata
     };
-    
   } catch (error: any) {
-    console.error('Erro na exportação do documento:', error);
-    return {
-      success: false,
-      error: error.message || 'Erro desconhecido na exportação'
-    };
+    console.error('Error exporting document:', error);
+    throw error;
   }
-}
-
-// Função mock para gerar PDF (seria implementada com biblioteca real em produção)
-async function generatePDF(projectData: any): Promise<Blob> {
-  console.log('Gerando PDF para', projectData);
-  // Em produção, usaríamos algo como PDFKit, jsPDF etc.
-  return new Blob(['PDF simulado'], { type: 'application/pdf' });
-}
-
-// Função mock para gerar DOCX (seria implementada com biblioteca real em produção)
-async function generateDOCX(projectData: any): Promise<Blob> {
-  console.log('Gerando DOCX para', projectData);
-  // Em produção, usaríamos algo como docx.js
-  return new Blob(['DOCX simulado'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }

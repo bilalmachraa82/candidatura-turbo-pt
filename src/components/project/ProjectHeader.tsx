@@ -1,10 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { exportDocument } from '@/api/exportDocument';
-import { useToast } from '@/hooks/use-toast';
+import ExportDialog from '@/components/ExportDialog';
 
 interface ProjectHeaderProps {
   projectName: string;
@@ -19,33 +18,12 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   isExporting, 
   setIsExporting 
 }) => {
-  const { toast } = useToast();
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf');
 
-  const handleExport = async (format: 'pdf' | 'docx') => {
-    if (!projectId) return;
-    
-    setIsExporting(true);
-    
-    try {
-      const result = await exportDocument(projectId, format);
-      
-      toast({
-        title: "Exportação concluída",
-        description: `O seu dossiê foi exportado em formato ${format.toUpperCase()}.`
-      });
-      
-      // In a real implementation, this would trigger a download
-      // window.open(result.url, '_blank');
-    } catch (error: any) {
-      console.error("Export error:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro na exportação",
-        description: error.message || "Não foi possível exportar o dossiê. Por favor tente novamente."
-      });
-    } finally {
-      setIsExporting(false);
-    }
+  const handleExportClick = (format: 'pdf' | 'docx') => {
+    setExportFormat(format);
+    setIsExportDialogOpen(true);
   };
 
   return (
@@ -61,7 +39,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
         <Button 
           variant="outline" 
           className="border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white"
-          onClick={() => handleExport('pdf')}
+          onClick={() => handleExportClick('pdf')}
           disabled={isExporting}
         >
           <Download className="mr-2 h-4 w-4" />
@@ -70,13 +48,20 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
         <Button 
           variant="outline" 
           className="border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white"
-          onClick={() => handleExport('docx')}
+          onClick={() => handleExportClick('docx')}
           disabled={isExporting}
         >
           <FileText className="mr-2 h-4 w-4" />
           Exportar DOCX
         </Button>
       </div>
+
+      <ExportDialog 
+        projectId={projectId}
+        projectName={projectName}
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+      />
     </div>
   );
 };
