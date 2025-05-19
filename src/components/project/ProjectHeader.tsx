@@ -1,9 +1,8 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import ExportDialog from '@/components/ExportDialog';
+import { FileDown } from 'lucide-react';
+import ExportModal from './ExportModal';
 
 interface ProjectHeaderProps {
   projectName: string;
@@ -12,55 +11,40 @@ interface ProjectHeaderProps {
   setIsExporting: (value: boolean) => void;
 }
 
-const ProjectHeader: React.FC<ProjectHeaderProps> = ({ 
-  projectName, 
-  projectId, 
-  isExporting, 
-  setIsExporting 
+const ProjectHeader: React.FC<ProjectHeaderProps> = ({
+  projectName,
+  projectId,
+  isExporting,
+  setIsExporting
 }) => {
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const handleExportClick = (format: 'pdf' | 'docx') => {
-    setExportFormat(format);
-    setIsExportDialogOpen(true);
+  const handleExportClick = () => {
+    setIsExportModalOpen(true);
   };
 
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
       <div>
-        <Link to="/" className="text-pt-blue hover:text-pt-green inline-flex items-center mb-2">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          <span>Voltar aos projetos</span>
-        </Link>
-        <h1 className="text-2xl md:text-3xl font-bold text-pt-blue">{projectName}</h1>
+        <h1 className="text-2xl font-bold text-pt-blue">{projectName}</h1>
+        <p className="text-gray-500 mt-1">ID: {projectId}</p>
       </div>
-      <div className="mt-4 md:mt-0 flex gap-2">
-        <Button 
-          variant="outline" 
-          className="border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white"
-          onClick={() => handleExportClick('pdf')}
+      
+      <div className="flex gap-2">
+        <Button
+          onClick={handleExportClick}
+          className="bg-pt-blue hover:bg-pt-blue/90"
           disabled={isExporting}
         >
-          <Download className="mr-2 h-4 w-4" />
-          Exportar PDF
-        </Button>
-        <Button 
-          variant="outline" 
-          className="border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white"
-          onClick={() => handleExportClick('docx')}
-          disabled={isExporting}
-        >
-          <FileText className="mr-2 h-4 w-4" />
-          Exportar DOCX
+          <FileDown className="mr-2 h-4 w-4" />
+          Exportar Dossiê
         </Button>
       </div>
-
-      <ExportDialog 
+      
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
         projectId={projectId}
-        projectName={projectName}
-        isOpen={isExportDialogOpen}
-        onClose={() => setIsExportDialogOpen(false)}
       />
     </div>
   );

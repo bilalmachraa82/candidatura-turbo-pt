@@ -1,76 +1,47 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { GenerationOptions, GenerationResult } from '@/types/api';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
-type AIModel = 'gpt-4o' | 'gemini-pro' | 'claude-3-opus';
-
 interface AIContextType {
-  model: AIModel;
-  setModel: (model: AIModel) => void;
-  isProcessing: boolean;
-  setIsProcessing: (isProcessing: boolean) => void;
-  lastGeneratedAt: Date | null;
-  setLastGeneratedAt: (date: Date | null) => void;
   generateText: (options: GenerationOptions) => Promise<GenerationResult>;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
 
 export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [model, setModel] = useState<AIModel>('gpt-4o');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [lastGeneratedAt, setLastGeneratedAt] = useState<Date | null>(null);
   const { toast } = useToast();
 
-  // Implementation of generateText function using Flowise API
   const generateText = async (options: GenerationOptions): Promise<GenerationResult> => {
     try {
-      setIsProcessing(true);
-      
-      const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL;
-      const FLOWISE_API_KEY = import.meta.env.VITE_FLOWISE_API_KEY;
-      
-      if (!FLOWISE_URL) {
-        throw new Error('FLOWISE_URL não está configurado');
-      }
-      
-      // Make API call to Flowise Generate endpoint
-      const response = await fetch(`${FLOWISE_URL}/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${FLOWISE_API_KEY}`
-        },
-        body: JSON.stringify({
-          projectId: options.projectId,
-          section: options.section,
-          charLimit: options.charLimit || 2000,
-          model: options.model || model
-        })
+      const { projectId, section, charLimit = 2000, model = 'gpt-4o' } = options;
+
+      // Chamar a função Edge do Supabase para geração de texto
+      const { data, error } = await supabase.functions.invoke('generate-text', {
+        body: { projectId, section, charLimit, model }
       });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API error: ${errorText}`);
+
+      if (error) {
+        throw new Error(`Erro na chamada à API: ${error.message}`);
       }
-      
-      const result = await response.json();
-      setLastGeneratedAt(new Date());
-      
+
+      if (!data.success) {
+        throw new Error(data.error || 'Falha na geração de texto');
+      }
+
       return {
         success: true,
-        text: result.text || '',
-        charsUsed: result.charsUsed || 0,
-        sources: result.sources || [],
-        error: undefined
+        text: data.text,
+        charsUsed: data.charsUsed,
+        sources: data.sources || []
       };
     } catch (error: any) {
-      console.error('Error generating text:', error);
+      console.error('Erro na geração de texto:', error);
       toast({
         variant: "destructive",
         title: "Erro na geração",
-        description: error.message || "Não foi possível gerar o texto"
+        description: error.message || 'Não foi possível gerar o texto'
       });
       
       return {
@@ -78,23 +49,13 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         text: '',
         charsUsed: 0,
         sources: [],
-        error: error.message || 'Erro desconhecido'
+        error: error.message
       };
-    } finally {
-      setIsProcessing(false);
     }
   };
 
   return (
-    <AIContext.Provider value={{
-      model,
-      setModel,
-      isProcessing,
-      setIsProcessing,
-      lastGeneratedAt,
-      setLastGeneratedAt,
-      generateText
-    }}>
+    <AIContext.Provider value={{ generateText }}>
       {children}
     </AIContext.Provider>
   );
@@ -103,7 +64,7 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 export const useAI = (): AIContextType => {
   const context = useContext(AIContext);
   if (context === undefined) {
-    throw new Error('useAI must be used within an AIProvider');
+    throw new Error('useAI deve ser usado dentro de um AIProvider');
   }
   return context;
 };
