@@ -95,8 +95,8 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
         });
       }
       
-      // Redirecionar para a página do projeto
-      navigate(`/projetos/${data.id}`);
+      // Update: Fix route name to match App.tsx route configuration
+      navigate(`/projects/${data.id}`);
       
       // Limpar e fechar modal
       resetForm();
