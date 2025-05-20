@@ -1,14 +1,20 @@
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+import App from './App'
 import './index.css'
-import { checkEnvironmentVariables } from './utils/envDebugger.ts'
+import { supabase } from './lib/supabase'
 
-// Verificar variáveis de ambiente na inicialização, mas sem exibir mensagens repetidas
-if (import.meta.env.DEV) {
-  checkEnvironmentVariables();
-}
+// Debug para verificar a conexão do Supabase
+console.log('Tentando conectar ao Supabase:', {
+  url: import.meta.env.VITE_SUPABASE_URL || 'URL não definida',
+  keyDefined: !!import.meta.env.VITE_SUPABASE_ANON_KEY
+})
+
+// Verificar a conexão ao carregar a aplicação
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('Auth state changed:', event, !!session)
+})
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
