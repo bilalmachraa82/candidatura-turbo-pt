@@ -43,28 +43,32 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
     try {
       console.log('AIContext generateText called with:', params);
       
-      // Determine provider and model from legacy model string or new format
-      let provider: 'openrouter' | 'flowise' = 'openrouter';
-      let modelId = params.model || 'google/gemini-2.0-flash-exp';
+      // Determine provider and model from parameters
+      let provider: 'openrouter' | 'flowise' = params.provider || 'openrouter';
+      let modelId = params.model || 'google/gemini-2.5-flash';
       
-      // Handle legacy model format
+      // Handle legacy model format and map to 2025 models
       if (params.model) {
-        switch (params.model) {
-          case 'gpt-4o':
-          case 'claude-3-opus':
-          case 'gemini-pro':
-            provider = 'flowise';
-            modelId = params.model;
-            break;
-          default:
-            // If it looks like an OpenRouter model (contains /)
-            if (params.model.includes('/')) {
-              provider = 'openrouter';
-              modelId = params.model;
-            } else {
-              provider = 'flowise';
-              modelId = params.model;
-            }
+        const legacyModelMapping: Record<string, string> = {
+          'gpt-4o': 'openai/gpt-4o',
+          'claude-3-opus': 'anthropic/claude-3-opus',
+          'gemini-pro': 'google/gemini-2.5-pro',
+          'claude-3.5-sonnet': 'anthropic/claude-3.5-sonnet-20241022',
+          'gemini-flash': 'google/gemini-2.5-flash'
+        };
+
+        // Map legacy models to new ones
+        if (legacyModelMapping[params.model]) {
+          modelId = legacyModelMapping[params.model];
+          provider = 'openrouter';
+        } else if (params.model.includes('/')) {
+          // Already in OpenRouter format
+          modelId = params.model;
+          provider = 'openrouter';
+        } else {
+          // Legacy Flowise format
+          provider = 'flowise';
+          modelId = params.model;
         }
       }
 

@@ -1,9 +1,10 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { generateSection } from '@/lib/generateSection';
 import { GenerationSource } from '@/types/api';
+import { getSectionRecommendedModel } from '@/types/ai';
 
 interface UseSectionEditorProps {
   projectId: string;
@@ -25,11 +26,19 @@ export const useSectionEditor = ({
   const [text, setText] = useState(initialText);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<{ provider: string; id: string }>({
-    provider: 'openrouter',
-    id: 'google/gemini-2.0-flash-exp'
+  
+  // Usar modelo recomendado baseado na secção
+  const [selectedModel, setSelectedModel] = useState<{ provider: string; id: string }>(() => {
+    return getSectionRecommendedModel(sectionKey);
   });
+  
   const { toast } = useToast();
+
+  // Atualizar modelo recomendado quando a secção muda
+  useEffect(() => {
+    const recommendedModel = getSectionRecommendedModel(sectionKey);
+    setSelectedModel(recommendedModel);
+  }, [sectionKey]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
@@ -99,7 +108,7 @@ export const useSectionEditor = ({
       
       toast({
         title: "Texto gerado",
-        description: `Gerado com ${result.provider} (${selectedModel.id})`
+        description: `Gerado com ${result.provider} usando ${selectedModel.id.split('/').pop()}`
       });
       
       // Guardar automaticamente o texto gerado
