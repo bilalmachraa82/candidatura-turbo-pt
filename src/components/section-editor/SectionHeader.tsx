@@ -42,6 +42,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
           size="sm"
           disabled={isGenerating}
           onClick={onGenerateClick}
+          aria-label={`Gerar texto automaticamente com IA para a secção: ${title}`}
         >
           {isGenerating ? (
             <>

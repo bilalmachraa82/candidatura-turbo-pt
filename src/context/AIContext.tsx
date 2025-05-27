@@ -1,55 +1,77 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { GenerationOptions, GenerationResult } from '@/types/api';
-import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { GenerationSource } from '@/types/api';
+
+interface GenerateTextParams {
+  projectId: string;
+  section: string;
+  charLimit: number;
+  model?: string;
+}
+
+interface GenerateTextResult {
+  success: boolean;
+  text: string;
+  sources?: GenerationSource[];
+  error?: string;
+}
 
 interface AIContextType {
-  generateText: (options: GenerationOptions) => Promise<GenerationResult>;
+  generateText: (params: GenerateTextParams) => Promise<GenerateTextResult>;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
 
-export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { toast } = useToast();
+export const useAI = () => {
+  const context = useContext(AIContext);
+  if (!context) {
+    throw new Error('useAI deve ser usado dentro de um AIProvider');
+  }
+  return context;
+};
 
-  const generateText = async (options: GenerationOptions): Promise<GenerationResult> => {
+interface AIProviderProps {
+  children: ReactNode;
+}
+
+export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
+  const generateText = async (params: GenerateTextParams): Promise<GenerateTextResult> => {
     try {
-      const { projectId, section, charLimit = 2000, model = 'gpt-4o' } = options;
-
-      // Chamar a função Edge do Supabase para geração de texto
+      console.log('Gerando texto com parâmetros:', params);
+      
+      // Usar a Edge Function do Supabase para gerar texto
       const { data, error } = await supabase.functions.invoke('generate-text', {
-        body: { projectId, section, charLimit, model }
+        body: {
+          projectId: params.projectId,
+          section: params.section,
+          charLimit: params.charLimit,
+          model: params.model || 'gpt-4o'
+        }
       });
 
       if (error) {
-        throw new Error(`Erro na chamada à API: ${error.message}`);
+        console.error('Erro na Edge Function:', error);
+        throw error;
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Falha na geração de texto');
+      if (!data) {
+        throw new Error('Resposta vazia da Edge Function');
       }
+
+      console.log('Resposta da Edge Function:', data);
 
       return {
         success: true,
-        text: data.text,
-        charsUsed: data.charsUsed,
-        sources: data.sources || []
+        text: data.text || '',
+        sources: data.sources || [],
       };
     } catch (error: any) {
-      console.error('Erro na geração de texto:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro na geração",
-        description: error.message || 'Não foi possível gerar o texto'
-      });
-      
+      console.error('Erro ao gerar texto:', error);
       return {
         success: false,
         text: '',
-        charsUsed: 0,
-        sources: [],
-        error: error.message
+        error: error.message || 'Erro desconhecido ao gerar texto'
       };
     }
   };
@@ -59,12 +81,4 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       {children}
     </AIContext.Provider>
   );
-};
-
-export const useAI = (): AIContextType => {
-  const context = useContext(AIContext);
-  if (context === undefined) {
-    throw new Error('useAI deve ser usado dentro de um AIProvider');
-  }
-  return context;
 };

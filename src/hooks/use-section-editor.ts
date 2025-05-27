@@ -39,7 +39,7 @@ export const useSectionEditor = ({
     try {
       setIsSaving(true);
       
-      // Atualizar o conteúdo da seção no Supabase
+      // Actualizar o conteúdo da secção no Supabase
       const { error } = await supabase
         .from('sections')
         .update({ 
@@ -52,15 +52,15 @@ export const useSectionEditor = ({
       if (error) throw error;
       
       toast({
-        title: "Seção salva",
-        description: "O conteúdo foi salvo com sucesso."
+        title: "Secção guardada",
+        description: "O conteúdo foi guardado com sucesso."
       });
     } catch (error: any) {
-      console.error('Erro ao salvar seção:', error);
+      console.error('Erro ao guardar secção:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao salvar",
-        description: error.message || "Não foi possível salvar o conteúdo."
+        title: "Erro ao guardar",
+        description: error.message || "Não foi possível guardar o conteúdo."
       });
     } finally {
       setIsSaving(false);
@@ -82,7 +82,7 @@ export const useSectionEditor = ({
         setText(result.text);
         onTextChange(result.text);
         
-        // Atualizar fontes
+        // Actualizar fontes
         if (result.sources) {
           onSourcesUpdate(result.sources);
         }
@@ -92,7 +92,7 @@ export const useSectionEditor = ({
           description: "O texto foi gerado com sucesso."
         });
         
-        // Salvar automaticamente o texto gerado
+        // Guardar automaticamente o texto gerado
         await handleSave();
       } else {
         throw new Error(result.error || "Falha ao gerar texto");

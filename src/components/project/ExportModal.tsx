@@ -40,8 +40,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, projectId })
               onValueChange={(value: 'pdf' | 'docx') => setFormat(value)}
               name="format"
             >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Selecione o formato" />
+              <SelectTrigger className="col-span-3" aria-label="Seleccionar formato de exportação">
+                <SelectValue placeholder="Seleccione o formato" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="pdf">PDF</SelectItem>
@@ -59,8 +59,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, projectId })
               onValueChange={(value: 'pt' | 'en') => setLanguage(value)}
               name="language"
             >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Selecione o idioma" />
+              <SelectTrigger className="col-span-3" aria-label="Seleccionar idioma de exportação">
+                <SelectValue placeholder="Seleccione o idioma" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="pt">Português</SelectItem>
@@ -82,11 +82,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, projectId })
             onClick={handleExport}
             disabled={isExporting}
             className="gap-2"
+            aria-label="Confirmar exportação do dossiê"
           >
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Exportando...
+                A exportar...
               </>
             ) : (
               <>

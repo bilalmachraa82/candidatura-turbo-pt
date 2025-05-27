@@ -42,7 +42,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
     if (!projectName.trim()) {
       toast({
         title: "Erro",
-        description: "O nome do projeto é obrigatório",
+        description: "O nome do projecto é obrigatório",
         variant: "destructive"
       });
       return;
@@ -52,7 +52,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
       toast({
         variant: "destructive",
         title: "Erro de autenticação",
-        description: "Necessita de iniciar sessão para criar um projeto."
+        description: "É necessário iniciar sessão para criar um projecto."
       });
       return;
     }
@@ -60,7 +60,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
     setIsSubmitting(true);
     
     try {
-      console.log("Creating project with user ID:", user.id);
+      console.log("A criar projecto com ID do utilizador:", user.id);
 
       const { data, error } = await supabase
         .from('projects')
@@ -77,7 +77,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
 
       toast({
         title: "Sucesso!",
-        description: "Projeto criado com sucesso",
+        description: "Projecto criado com sucesso",
       });
       
       await createDefaultSections(data.id);
@@ -96,11 +96,11 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Error creating project:", error);
+      console.error("Erro ao criar projecto:", error);
       toast({
         variant: "destructive",
-        title: "Erro ao criar projeto",
-        description: error.message || "Ocorreu um erro ao criar o projeto. Tente novamente."
+        title: "Erro ao criar projecto",
+        description: error.message || "Ocorreu um erro ao criar o projecto. Tente novamente."
       });
     } finally {
       setIsSubmitting(false);
@@ -140,9 +140,9 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="text-pt-blue">Criar Novo Projeto</DialogTitle>
+          <DialogTitle className="text-pt-blue">Criar Novo Projecto</DialogTitle>
           <DialogDescription>
-            Introduza os detalhes do seu novo projeto PT2030.
+            Introduza os detalhes do seu novo projecto PT2030.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -156,8 +156,9 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 className="col-span-3"
-                placeholder="Nome do projeto"
+                placeholder="Nome do projecto"
                 autoFocus
+                aria-label="Nome do projecto"
               />
             </div>
             
@@ -170,8 +171,9 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
                 value={projectDescription}
                 onChange={(e) => setProjectDescription(e.target.value)}
                 className="col-span-3"
-                placeholder="Descrição breve do projeto"
+                placeholder="Descrição breve do projecto"
                 rows={3}
+                aria-label="Descrição do projecto"
               />
             </div>
             
@@ -184,8 +186,9 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
                 value={projectType}
                 onChange={(e) => setProjectType(e.target.value)}
                 className="col-span-3"
-                placeholder="Tipo de projeto"
+                placeholder="Tipo de projecto"
                 disabled={isSubmitting}
+                aria-label="Tipo de projecto"
               />
             </div>
           </div>
@@ -194,7 +197,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
               Cancelar
             </Button>
             <Button type="submit" className="bg-pt-green hover:bg-pt-green/90" disabled={isSubmitting}>
-              {isSubmitting ? "A criar..." : "Criar Projeto"}
+              {isSubmitting ? "A criar..." : "Criar Projecto"}
             </Button>
           </DialogFooter>
         </form>

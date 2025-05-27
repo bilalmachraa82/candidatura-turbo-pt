@@ -30,6 +30,7 @@ const EditorContent: React.FC<EditorContentProps> = ({
         onChange={onTextChange}
         placeholder={placeholder}
         className="min-h-[200px] resize-y"
+        aria-label="Editor de conteúdo da secção"
       />
       
       <CharacterCounter currentCount={text.length} maxCount={charLimit} />
@@ -39,16 +40,17 @@ const EditorContent: React.FC<EditorContentProps> = ({
           variant="outline"
           onClick={onSave}
           disabled={isSaving}
+          aria-label="Guardar alterações desta secção"
         >
           {isSaving ? (
             <>
               <Spinner size="sm" className="mr-2" />
-              A salvar...
+              A guardar...
             </>
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Salvar
+              Guardar
             </>
           )}
         </Button>
