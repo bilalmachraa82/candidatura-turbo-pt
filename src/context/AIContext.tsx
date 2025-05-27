@@ -51,6 +51,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
       if (params.model) {
         const legacyModelMapping: Record<string, string> = {
           'gpt-4o': 'openai/gpt-4o',
+          'gpt-4.1': 'openai/gpt-4.1',
           'claude-3-opus': 'anthropic/claude-3-opus',
           'gemini-pro': 'google/gemini-2.5-pro',
           'claude-3.5-sonnet': 'anthropic/claude-3.5-sonnet-20241022',

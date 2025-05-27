@@ -1,8 +1,8 @@
-
 export type AIModel = 
   // OpenRouter Models 2025 - Premium
   | 'anthropic/claude-3.5-sonnet-20241022'
   | 'google/gemini-2.5-pro'
+  | 'openai/gpt-4.1'
   | 'openai/gpt-4o'
   // OpenRouter Models 2025 - Rápido & Eficaz
   | 'google/gemini-2.5-flash'
@@ -57,9 +57,9 @@ export const getSectionRecommendedModel = (sectionKey: string): { provider: stri
   const recommendations: Record<string, string> = {
     'analise_mercado': 'google/gemini-2.5-pro',
     'proposta_valor': 'anthropic/claude-3.5-sonnet-20241022',
-    'plano_financeiro': 'openai/gpt-4o',
+    'plano_financeiro': 'openai/gpt-4.1',
     'estrategia_comercial': 'google/gemini-2.5-flash',
-    'inovacao_tecnologica': 'anthropic/claude-3.5-sonnet-20241022',
+    'inovacao_tecnologica': 'openai/gpt-4.1',
     'sustentabilidade': 'google/gemini-2.5-pro',
     'recursos_humanos': 'google/gemini-2.5-flash',
     'cronograma': 'qwen/qwen-2.5-72b-instruct',
