@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { generateSection } from '@/lib/generateSection';
 import { GenerationSource } from '@/types/api';
 
 interface GenerateTextParams {
@@ -8,6 +8,7 @@ interface GenerateTextParams {
   section: string;
   charLimit: number;
   model?: string;
+  provider?: 'openrouter' | 'flowise';
 }
 
 interface GenerateTextResult {
@@ -15,6 +16,8 @@ interface GenerateTextResult {
   text: string;
   sources?: GenerationSource[];
   error?: string;
+  provider?: string;
+  charsUsed?: number;
 }
 
 interface AIContextType {
@@ -38,36 +41,64 @@ interface AIProviderProps {
 export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
   const generateText = async (params: GenerateTextParams): Promise<GenerateTextResult> => {
     try {
-      console.log('Gerando texto com parâmetros:', params);
+      console.log('AIContext generateText called with:', params);
       
-      // Usar a Edge Function do Supabase para gerar texto
-      const { data, error } = await supabase.functions.invoke('generate-text', {
-        body: {
-          projectId: params.projectId,
-          section: params.section,
-          charLimit: params.charLimit,
-          model: params.model || 'gpt-4o'
+      // Determine provider and model from legacy model string or new format
+      let provider: 'openrouter' | 'flowise' = 'openrouter';
+      let modelId = params.model || 'google/gemini-2.0-flash-exp';
+      
+      // Handle legacy model format
+      if (params.model) {
+        switch (params.model) {
+          case 'gpt-4o':
+          case 'claude-3-opus':
+          case 'gemini-pro':
+            provider = 'flowise';
+            modelId = params.model;
+            break;
+          default:
+            // If it looks like an OpenRouter model (contains /)
+            if (params.model.includes('/')) {
+              provider = 'openrouter';
+              modelId = params.model;
+            } else {
+              provider = 'flowise';
+              modelId = params.model;
+            }
         }
-      });
-
-      if (error) {
-        console.error('Erro na Edge Function:', error);
-        throw error;
       }
 
-      if (!data) {
-        throw new Error('Resposta vazia da Edge Function');
+      // Override with explicit provider if provided
+      if (params.provider) {
+        provider = params.provider;
       }
 
-      console.log('Resposta da Edge Function:', data);
+      console.log('Using provider:', provider, 'model:', modelId);
 
+      const result = await generateSection(
+        params.projectId,
+        params.section,
+        params.charLimit,
+        provider,
+        modelId
+      );
+
+      // Transform to legacy format for compatibility
       return {
         success: true,
-        text: data.text || '',
-        sources: data.sources || [],
+        text: result.text,
+        sources: result.sources?.map(source => ({
+          id: source.id,
+          name: source.name,
+          reference: source.reference,
+          type: source.type as 'pdf' | 'excel' | 'document'
+        })) || [],
+        provider: result.provider,
+        charsUsed: result.charsUsed
       };
+
     } catch (error: any) {
-      console.error('Erro ao gerar texto:', error);
+      console.error('Error in AIContext generateText:', error);
       return {
         success: false,
         text: '',

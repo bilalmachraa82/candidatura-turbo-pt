@@ -8,8 +8,8 @@ import ModelSelector from '@/components/ModelSelector';
 interface SectionHeaderProps {
   title: string;
   description?: string;
-  selectedModel: string;
-  onModelChange: (model: string) => void;
+  selectedModel: { provider: string; id: string };
+  onModelChange: (model: { provider: string; id: string }) => void;
   isGenerating: boolean;
   onGenerateClick: () => void;
 }
@@ -23,13 +23,13 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   onGenerateClick
 }) => {
   return (
-    <div className="flex justify-between items-start">
-      <div>
+    <div className="flex justify-between items-start gap-4">
+      <div className="flex-1">
         <h2 className="text-lg font-semibold text-pt-blue">{title}</h2>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
       </div>
       
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-3">
         <ModelSelector 
           value={selectedModel}
           onChange={onModelChange}

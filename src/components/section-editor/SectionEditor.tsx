@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useSectionEditor } from '@/hooks/use-section-editor';
 import SectionHeader from './SectionHeader';
 import EditorContent from './EditorContent';
+import ChatThread from '@/components/ChatThread';
 import { GenerationSource } from '@/types/api';
 
 interface SectionEditorProps {
@@ -53,30 +54,46 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     }
   }, [initialText, setText, text]);
 
+  const handleChatGenerated = (generatedText: string) => {
+    setText(generatedText);
+    onTextChange(generatedText);
+  };
+
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="pb-3">
-        <SectionHeader 
-          title={title}
-          description={description}
-          selectedModel={selectedModel}
-          onModelChange={setSelectedModel}
-          isGenerating={isGenerating}
-          onGenerateClick={handleGenerateText}
-        />
-      </CardHeader>
-      
-      <CardContent>
-        <EditorContent 
-          text={text}
-          onTextChange={handleTextChange}
-          charLimit={charLimit}
-          isSaving={isSaving}
-          onSave={handleSave}
-          placeholder={`Escreva o conteúdo para ${title} aqui...`}
-        />
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <SectionHeader 
+            title={title}
+            description={description}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            isGenerating={isGenerating}
+            onGenerateClick={handleGenerateText}
+          />
+        </CardHeader>
+        
+        <CardContent>
+          <EditorContent 
+            text={text}
+            onTextChange={handleTextChange}
+            charLimit={charLimit}
+            isSaving={isSaving}
+            onSave={handleSave}
+            placeholder={`Escreva o conteúdo para ${title} aqui...`}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Mini-chat for section refinement */}
+      <ChatThread
+        projectId={projectId}
+        section={sectionKey}
+        charLimit={charLimit}
+        model={selectedModel}
+        onTextGenerated={handleChatGenerated}
+      />
+    </div>
   );
 };
 

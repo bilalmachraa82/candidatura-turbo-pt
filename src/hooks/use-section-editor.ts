@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { useAI } from '@/context/AIContext';
+import { generateSection } from '@/lib/generateSection';
 import { GenerationSource } from '@/types/api';
 
 interface UseSectionEditorProps {
@@ -25,9 +25,11 @@ export const useSectionEditor = ({
   const [text, setText] = useState(initialText);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o');
+  const [selectedModel, setSelectedModel] = useState<{ provider: string; id: string }>({
+    provider: 'openrouter',
+    id: 'google/gemini-2.0-flash-exp'
+  });
   const { toast } = useToast();
-  const { generateText } = useAI();
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
@@ -71,32 +73,38 @@ export const useSectionEditor = ({
     try {
       setIsGenerating(true);
       
-      const result = await generateText({
+      console.log('Generating with model:', selectedModel);
+      
+      const result = await generateSection(
         projectId,
-        section: sectionKey,
+        sectionKey,
         charLimit,
-        model: selectedModel
+        selectedModel.provider as 'openrouter' | 'flowise',
+        selectedModel.id
+      );
+      
+      setText(result.text);
+      onTextChange(result.text);
+      
+      // Actualizar fontes
+      if (result.sources) {
+        const sources: GenerationSource[] = result.sources.map(source => ({
+          id: source.id,
+          name: source.name,
+          reference: source.reference,
+          type: source.type as 'pdf' | 'excel' | 'document'
+        }));
+        onSourcesUpdate(sources);
+      }
+      
+      toast({
+        title: "Texto gerado",
+        description: `Gerado com ${result.provider} (${selectedModel.id})`
       });
       
-      if (result.success) {
-        setText(result.text);
-        onTextChange(result.text);
-        
-        // Actualizar fontes
-        if (result.sources) {
-          onSourcesUpdate(result.sources);
-        }
-        
-        toast({
-          title: "Texto gerado",
-          description: "O texto foi gerado com sucesso."
-        });
-        
-        // Guardar automaticamente o texto gerado
-        await handleSave();
-      } else {
-        throw new Error(result.error || "Falha ao gerar texto");
-      }
+      // Guardar automaticamente o texto gerado
+      await handleSave();
+      
     } catch (error: any) {
       console.error('Erro ao gerar texto:', error);
       toast({
