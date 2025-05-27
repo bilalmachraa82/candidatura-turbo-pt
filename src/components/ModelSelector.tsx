@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Select,
@@ -21,6 +20,12 @@ const MODELS = [
     provider: 'openrouter',
     group: '🚀 Premium Quality (2025)',
     items: [
+      { 
+        id: 'anthropic/claude-4-sonnet', 
+        label: 'Claude 4 Sonnet', 
+        cost: '€€€€',
+        specialty: 'Novo modelo mais avançado da Anthropic'
+      },
       { 
         id: 'anthropic/claude-3.5-sonnet-20241022', 
         label: 'Claude 3.5 Sonnet', 
@@ -62,12 +67,6 @@ const MODELS = [
         label: 'Gemini 2.0 Flash Thinking', 
         cost: '€€',
         specialty: 'Raciocínio melhorado'
-      },
-      { 
-        id: 'anthropic/claude-3.5-sonnet', 
-        label: 'Claude 3.5 Sonnet (Stable)', 
-        cost: '€€',
-        specialty: 'Equilibrio qualidade-velocidade'
       }
     ]
   },
@@ -86,12 +85,6 @@ const MODELS = [
         label: 'Llama 3.3 70B', 
         cost: '€',
         specialty: 'Open source, boa para PT'
-      },
-      { 
-        id: 'google/gemini-2.0-flash-exp', 
-        label: 'Gemini 2.0 Flash (Legacy)', 
-        cost: '€',
-        specialty: 'Fallback confiável'
       }
     ]
   },
@@ -130,7 +123,7 @@ const MODELS = [
 // Modelos recomendados por tipo de secção PT2030
 const SECTION_RECOMMENDATIONS: Record<string, string> = {
   'analise_mercado': 'google/gemini-2.5-pro',
-  'proposta_valor': 'anthropic/claude-3.5-sonnet-20241022',
+  'proposta_valor': 'anthropic/claude-4-sonnet',
   'plano_financeiro': 'openai/gpt-4.1',
   'estrategia_comercial': 'google/gemini-2.5-flash',
   'inovacao_tecnologica': 'openai/gpt-4.1',

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, ReactNode } from 'react';
 import { generateSection } from '@/lib/generateSection';
 import { GenerationSource } from '@/types/api';
@@ -53,6 +52,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
           'gpt-4o': 'openai/gpt-4o',
           'gpt-4.1': 'openai/gpt-4.1',
           'claude-3-opus': 'anthropic/claude-3-opus',
+          'claude-4-sonnet': 'anthropic/claude-4-sonnet',
           'gemini-pro': 'google/gemini-2.5-pro',
           'claude-3.5-sonnet': 'anthropic/claude-3.5-sonnet-20241022',
           'gemini-flash': 'google/gemini-2.5-flash'

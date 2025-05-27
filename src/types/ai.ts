@@ -1,5 +1,7 @@
+
 export type AIModel = 
   // OpenRouter Models 2025 - Premium
+  | 'anthropic/claude-4-sonnet'
   | 'anthropic/claude-3.5-sonnet-20241022'
   | 'google/gemini-2.5-pro'
   | 'openai/gpt-4.1'
@@ -7,11 +9,9 @@ export type AIModel =
   // OpenRouter Models 2025 - Rápido & Eficaz
   | 'google/gemini-2.5-flash'
   | 'google/gemini-2.0-flash-thinking-exp'
-  | 'anthropic/claude-3.5-sonnet'
   // OpenRouter Models 2025 - Económico
   | 'qwen/qwen-2.5-72b-instruct'
   | 'meta-llama/llama-3.3-70b-instruct'
-  | 'google/gemini-2.0-flash-exp'
   // OpenRouter Models - Casos Especiais
   | 'openai/o1-mini'
   | 'anthropic/claude-3-opus'
@@ -56,7 +56,7 @@ export interface HybridGenerationOptions {
 export const getSectionRecommendedModel = (sectionKey: string): { provider: string; id: string } => {
   const recommendations: Record<string, string> = {
     'analise_mercado': 'google/gemini-2.5-pro',
-    'proposta_valor': 'anthropic/claude-3.5-sonnet-20241022',
+    'proposta_valor': 'anthropic/claude-4-sonnet',
     'plano_financeiro': 'openai/gpt-4.1',
     'estrategia_comercial': 'google/gemini-2.5-flash',
     'inovacao_tecnologica': 'openai/gpt-4.1',
