@@ -7,8 +7,9 @@ import { Sparkles, Save } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { useAI } from '@/context/AIContext';
+import { generateSection } from '@/lib/generateSection';
 import ModelSelector from '@/components/ModelSelector';
+import ChatThread from '@/components/ChatThread';
 import { GenerationSource } from '@/types/api';
 
 interface SectionEditorProps {
@@ -35,9 +36,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   const [text, setText] = useState(initialText);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o');
+  const [selectedModel, setSelectedModel] = useState<{ provider: string; id: string }>({
+    provider: 'openrouter',
+    id: 'google/gemini-2.0-flash-exp'
+  });
   const { toast } = useToast();
-  const { generateText } = useAI();
 
   useEffect(() => {
     // Sincronizar o texto com o estado inicial
@@ -87,32 +90,38 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     try {
       setIsGenerating(true);
       
-      const result = await generateText({
+      console.log('Generating with model:', selectedModel);
+      
+      const result = await generateSection(
         projectId,
-        section: sectionKey,
+        sectionKey,
         charLimit,
-        model: selectedModel
+        selectedModel.provider as 'openrouter' | 'flowise',
+        selectedModel.id
+      );
+      
+      setText(result.text);
+      onTextChange(result.text);
+      
+      // Atualizar fontes
+      if (result.sources) {
+        const sources: GenerationSource[] = result.sources.map(source => ({
+          id: source.id,
+          name: source.name,
+          reference: source.reference,
+          type: source.type as 'pdf' | 'excel' | 'document'
+        }));
+        onSourcesUpdate(sources);
+      }
+      
+      toast({
+        title: "Texto gerado",
+        description: `Gerado com ${result.provider} (${selectedModel.id})`
       });
       
-      if (result.success) {
-        setText(result.text);
-        onTextChange(result.text);
-        
-        // Atualizar fontes
-        if (result.sources) {
-          onSourcesUpdate(result.sources);
-        }
-        
-        toast({
-          title: "Texto gerado",
-          description: "O texto foi gerado com sucesso."
-        });
-        
-        // Salvar automaticamente o texto gerado
-        await handleSave();
-      } else {
-        throw new Error(result.error || "Falha ao gerar texto");
-      }
+      // Salvar automaticamente o texto gerado
+      await handleSave();
+      
     } catch (error: any) {
       console.error('Erro ao gerar texto:', error);
       toast({
@@ -136,95 +145,111 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     progressColor = "bg-yellow-500";
   }
 
+  const handleChatGenerated = (generatedText: string) => {
+    setText(generatedText);
+    onTextChange(generatedText);
+  };
+
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-semibold text-pt-blue">{title}</CardTitle>
-            {description && <CardDescription>{description}</CardDescription>}
+    <div className="space-y-4">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg font-semibold text-pt-blue">{title}</CardTitle>
+              {description && <CardDescription>{description}</CardDescription>}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <ModelSelector 
+                value={selectedModel}
+                onChange={setSelectedModel}
+                disabled={isGenerating}
+              />
+              
+              <Button 
+                variant="default"
+                className="bg-pt-green hover:bg-pt-green/90 text-white"
+                size="sm"
+                disabled={isGenerating}
+                onClick={handleGenerateText}
+              >
+                {isGenerating ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    A gerar...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Gerar com IA
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <ModelSelector 
-              value={selectedModel}
-              onChange={setSelectedModel}
-              disabled={isGenerating}
+        </CardHeader>
+        
+        <CardContent>
+          <div className="space-y-4">
+            <Textarea
+              value={text}
+              onChange={handleTextChange}
+              placeholder={`Escreva o conteúdo para ${title} aqui...`}
+              className="min-h-[200px] resize-y"
             />
             
-            <Button 
-              variant="default"
-              className="bg-pt-green hover:bg-pt-green/90 text-white"
-              size="sm"
-              disabled={isGenerating}
-              onClick={handleGenerateText}
-            >
-              {isGenerating ? (
-                <>
-                  <Spinner size="sm" className="mr-2" />
-                  A gerar...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Gerar com IA
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        <div className="space-y-4">
-          <Textarea
-            value={text}
-            onChange={handleTextChange}
-            placeholder={`Escreva o conteúdo para ${title} aqui...`}
-            className="min-h-[200px] resize-y"
-          />
-          
-          <div className="space-y-1">
-            <div className="flex justify-between items-center text-sm text-gray-500">
-              <span>
-                <span className={charsCount > charLimit ? "text-red-600 font-medium" : ""}>
-                  {charsCount}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-sm text-gray-500">
+                <span>
+                  <span className={charsCount > charLimit ? "text-red-600 font-medium" : ""}>
+                    {charsCount}
+                  </span>
+                  /{charLimit} caracteres
                 </span>
-                /{charLimit} caracteres
-              </span>
-              <span>{charsPercentage}%</span>
+                <span>{charsPercentage}%</span>
+              </div>
+              
+              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${progressColor} transition-all`}
+                  style={{ width: `${charsPercentage}%` }}
+                ></div>
+              </div>
             </div>
             
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full ${progressColor} transition-all`}
-                style={{ width: `${charsPercentage}%` }}
-              ></div>
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    A salvar...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Salvar
+                  </>
+                )}
+              </Button>
             </div>
           </div>
-          
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Spinner size="sm" className="mr-2" />
-                  A salvar...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Salvar
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Mini-chat for section refinement */}
+      <ChatThread
+        projectId={projectId}
+        section={sectionKey}
+        charLimit={charLimit}
+        model={selectedModel}
+        onTextGenerated={handleChatGenerated}
+      />
+    </div>
   );
 };
 
