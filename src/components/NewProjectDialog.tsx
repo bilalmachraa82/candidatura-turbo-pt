@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
 interface NewProjectDialogProps {
@@ -34,7 +34,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user } = useAuth(); // Get the current authenticated user
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +48,6 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
       return;
     }
 
-    // Check if user is authenticated
     if (!user) {
       toast({
         variant: "destructive",
@@ -63,14 +62,13 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
     try {
       console.log("Creating project with user ID:", user.id);
 
-      // Create the project in Supabase - explicitly setting user_id
       const { data, error } = await supabase
         .from('projects')
         .insert({
           title: projectName,
           description: projectDescription,
           status: 'draft',
-          user_id: user.id // Explicitly set the user_id to match RLS policy
+          user_id: user.id
         })
         .select()
         .single();
@@ -82,23 +80,19 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
         description: "Projeto criado com sucesso",
       });
       
-      // Create default sections for the project
       await createDefaultSections(data.id);
       
-      // Notify parent component
       if (onCreateProject) {
         onCreateProject({
           name: projectName,
           description: projectDescription,
-          type: projectType, // Keep this for UI consistency
+          type: projectType,
           id: data.id
         });
       }
       
-      // Update: Fix route name to match App.tsx route configuration
       navigate(`/projects/${data.id}`);
       
-      // Limpar e fechar modal
       resetForm();
       onOpenChange(false);
     } catch (error: any) {

@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { UploadedFile, ProjectSection } from '@/types/components';
 import { indexDocument } from '@/api/indexDocuments';
 import { GenerationSource } from '@/types/api';
@@ -23,7 +23,6 @@ export function useProject({ projectId }: UseProjectProps) {
   const [indexed, setIndexed] = useState(false);
   const { toast } = useToast();
 
-  // Calculate total character usage across all sections
   useEffect(() => {
     const totalUsed = sections.reduce((acc, section) => acc + section.content.length, 0);
     setCharsUsed(totalUsed);
@@ -32,7 +31,6 @@ export function useProject({ projectId }: UseProjectProps) {
     setTotalCharLimit(total);
   }, [sections]);
 
-  // Fetch project data
   useEffect(() => {
     if (projectId) {
       fetchProject();
@@ -44,7 +42,6 @@ export function useProject({ projectId }: UseProjectProps) {
     try {
       if (!projectId) return;
 
-      // Fetch project details
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select('*')
@@ -58,7 +55,6 @@ export function useProject({ projectId }: UseProjectProps) {
         status: projectData.status || 'draft'
       });
 
-      // Fetch project sections
       const { data: sectionsData, error: sectionsError } = await supabase
         .from('sections')
         .select('*')
@@ -77,7 +73,6 @@ export function useProject({ projectId }: UseProjectProps) {
           charLimit: s.char_limit || 2000
         })));
       } else {
-        // If no sections found, create default ones in the DB and use them
         const defaultSections = [
           {
             projectId: projectId,
@@ -105,7 +100,6 @@ export function useProject({ projectId }: UseProjectProps) {
           }
         ];
         
-        // Insert default sections into the database
         for (const section of defaultSections) {
           await supabase.from('sections').insert({
             project_id: section.projectId,
@@ -117,7 +111,6 @@ export function useProject({ projectId }: UseProjectProps) {
           });
         }
         
-        // Fetch the newly created sections to get their IDs
         const { data: newSectionsData } = await supabase
           .from('sections')
           .select('*')
@@ -136,7 +129,6 @@ export function useProject({ projectId }: UseProjectProps) {
         }
       }
 
-      // Fetch uploaded files
       try {
         const { data: filesData, error: filesError } = await supabase
           .from('indexed_files')
@@ -179,24 +171,19 @@ export function useProject({ projectId }: UseProjectProps) {
     };
     
     setFiles(prev => [...prev, newFile]);
-
-    // After file is uploaded, index it
     await indexFileForRAG(file);
   };
 
-  // New function to handle indexing file for RAG
   const indexFileForRAG = async (file: {name: string, url: string, type: string}) => {
     if (!projectId) return;
     
     setIsIndexing(true);
     
     try {
-      // Get the file from the URL
       const fileResponse = await fetch(file.url);
       const fileBlob = await fileResponse.blob();
       const fileObject = new File([fileBlob], file.name, { type: file.type });
       
-      // Call the indexDocument function
       const indexResult = await indexDocument(projectId, fileObject);
       
       if (indexResult.success) {
@@ -231,9 +218,7 @@ export function useProject({ projectId }: UseProjectProps) {
     );
   };
 
-  // Convert GenerationSource to Source - use useCallback to prevent recreation on every render
   const handleSourcesUpdate = useCallback((sectionId: string, newSources: any[]) => {
-    // Convert from GenerationSource to Source type
     const convertedSources = newSources.map(source => ({
       id: source.id || '',
       name: source.name,
@@ -241,9 +226,7 @@ export function useProject({ projectId }: UseProjectProps) {
       type: source.type
     }));
     
-    // Only update if sources are different to avoid infinite loops
     setSources(prevSources => {
-      // Simple string comparison to check if arrays are equivalent
       const prevSourcesString = JSON.stringify(prevSources);
       const newSourcesString = JSON.stringify(convertedSources);
       

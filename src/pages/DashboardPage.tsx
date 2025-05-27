@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
 import NewProjectDialog from '@/components/NewProjectDialog';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
@@ -161,7 +161,7 @@ const DashboardPage: React.FC = () => {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Link to={`/projetos/${project.id}`} className="w-full">
+                  <Link to={`/projects/${project.id}`} className="w-full">
                     <Button variant="outline" className="w-full border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white">
                       <FileText className="h-4 w-4 mr-2" />
                       Abrir Projeto
