@@ -1,156 +1,89 @@
 
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LogOut, LogIn, Menu, X } from 'lucide-react';
-import LogoPT2030 from './LogoPT2030';
 import { useAuth } from '@/context/AuthContext';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useToast } from '@/hooks/use-toast';
+import LogoPT2030 from './LogoPT2030';
 
 const Header: React.FC = () => {
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const isMobile = useIsMobile();
+  const { user, signOut } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  // Use optional chaining to safely access auth context
-  const { user, loading, signOut } = useAuth();
-  
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      toast({
-        title: "Sessão terminada",
-        description: "Você foi desconectado com sucesso."
-      });
-      navigate('/login');
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao sair",
-        description: "Não foi possível encerrar a sessão."
-      });
-    }
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <div className="flex-shrink-0">
-            <Link to="/">
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div className="pt-container">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center space-x-8">
+            <Link to="/" className="flex items-center">
               <LogoPT2030 />
             </Link>
-          </div>
-          
-          {/* Mobile menu button */}
-          {isMobile && (
-            <button onClick={toggleMenu} className="text-gray-500">
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          )}
-          
-          {/* Desktop navigation */}
-          {!isMobile && (
-            <div className="hidden md:flex items-center">
-              <nav className="ml-10 flex items-baseline space-x-4">
-                <Link
-                  to="/"
-                  className="text-gray-700 hover:text-pt-green px-3 py-2 text-sm font-medium"
+            
+            {user && (
+              <nav className="hidden md:flex space-x-6">
+                <Link 
+                  to="/" 
+                  className={`text-sm font-medium transition-colors hover:text-pt-green ${
+                    isActive('/') ? 'text-pt-green' : 'text-gray-700'
+                  }`}
                 >
-                  Projetos
+                  Projectos
                 </Link>
-                <Link
-                  to="/contactos"
-                  className="text-gray-700 hover:text-pt-green px-3 py-2 text-sm font-medium"
+                <Link 
+                  to="/test" 
+                  className={`text-sm font-medium transition-colors hover:text-pt-green ${
+                    isActive('/test') ? 'text-pt-green' : 'text-gray-700'
+                  }`}
                 >
-                  Contactos
+                  Testes
                 </Link>
-                {loading ? (
-                  <div className="ml-4 text-sm text-gray-500">Carregando...</div>
-                ) : user ? (
-                  <Button
-                    onClick={handleLogout}
-                    variant="ghost"
-                    size="sm"
-                    className="ml-4"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sair
-                  </Button>
-                ) : (
-                  <Link to="/login">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-4"
-                    >
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Entrar
-                    </Button>
-                  </Link>
-                )}
+                <Link 
+                  to="/contact" 
+                  className={`text-sm font-medium transition-colors hover:text-pt-green ${
+                    isActive('/contact') ? 'text-pt-green' : 'text-gray-700'
+                  }`}
+                >
+                  Contacto
+                </Link>
               </nav>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
 
-      {/* Mobile navigation */}
-      {isMobile && isMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200">
-          <div className="pt-2 pb-3 space-y-1 px-2">
-            <Link
-              to="/"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-              onClick={toggleMenu}
-            >
-              Projetos
-            </Link>
-            <Link
-              to="/contactos"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-              onClick={toggleMenu}
-            >
-              Contactos
-            </Link>
-            {loading ? (
-              <div className="px-3 py-2 text-sm text-gray-500">Carregando...</div>
-            ) : user ? (
-              <Button
-                onClick={() => {
-                  handleLogout();
-                  toggleMenu();
-                }}
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Sair
-              </Button>
-            ) : (
-              <Link to="/login" className="w-full block" onClick={toggleMenu}>
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-700">
+                  Bem-vindo, {user.email}
+                </span>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="w-full justify-start"
+                  onClick={() => signOut()}
+                  className="text-pt-blue hover:bg-pt-blue hover:text-white"
                 >
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Entrar
+                  Terminar Sessão
                 </Button>
-              </Link>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link to="/login">
+                  <Button variant="outline" size="sm">
+                    Iniciar Sessão
+                  </Button>
+                </Link>
+                <Link to="/register">
+                  <Button size="sm" className="bg-pt-green hover:bg-pt-green/90">
+                    Registar
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
         </div>
-      )}
+      </div>
     </header>
   );
 };
