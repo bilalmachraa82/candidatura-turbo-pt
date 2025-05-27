@@ -19,7 +19,14 @@ interface Project {
   description: string | null;
   created_at: string;
   status: string;
-  type: string;
+  user_id: string;
+  budget: number | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  region: string | null;
+  program: string | null;
+  organization: string | null;
+  updated_at: string;
 }
 
 const DashboardPage: React.FC = () => {
@@ -70,8 +77,15 @@ const DashboardPage: React.FC = () => {
       title: projectData.name,
       description: projectData.description || null,
       status: 'draft',
-      type: projectData.type || 'Standard',
-      created_at: new Date().toISOString()
+      user_id: user?.id || '',
+      budget: null,
+      contact_email: null,
+      contact_phone: null,
+      region: null,
+      program: null,
+      organization: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
     
     setProjects((prev) => [newProject, ...prev]);
@@ -152,8 +166,8 @@ const DashboardPage: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center text-sm text-gray-500">
-                    <span className="font-medium mr-2">Tipo:</span>
-                    <span>{project.type || 'Standard'}</span>
+                    <span className="font-medium mr-2">Região:</span>
+                    <span>{project.region || 'Não especificada'}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-500 mt-2">
                     <span className="font-medium mr-2">Criado em:</span>

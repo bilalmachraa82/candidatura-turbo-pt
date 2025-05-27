@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { GenerationOptions, GenerationResult, GenerationSource } from '@/types/api';
 
@@ -21,20 +20,17 @@ export async function generateText(options: GenerationOptions): Promise<Generati
       };
     }
 
-    // 1. Buscar chunks relevantes no banco de dados
-    const { data: relevantChunks, error: chunksError } = await supabase.rpc(
-      'match_document_chunks',
-      {
-        query_embedding: await generateQueryEmbedding(section),
-        match_threshold: 0.7,
-        match_count: 5,
-        p_project_id: projectId
-      }
-    );
+    // 1. Buscar chunks relevantes no banco de dados usando busca por texto simples
+    const { data: relevantChunks, error: chunksError } = await supabase
+      .from('document_chunks')
+      .select('id, content, metadata')
+      .eq('project_id', projectId)
+      .textSearch('content', section)
+      .limit(5);
 
     if (chunksError) {
       console.error('Erro ao buscar chunks relevantes:', chunksError);
-      throw new Error(`Falha ao buscar documentos relevantes: ${chunksError.message}`);
+      // Continuar sem chunks se não encontrar
     }
 
     // 2. Construir o contexto para o prompt
@@ -44,7 +40,7 @@ export async function generateText(options: GenerationOptions): Promise<Generati
 
     // 3. Mapear os chunks para fontes
     const sources: GenerationSource[] = relevantChunks?.map(chunk => {
-      const metadata = chunk.metadata as Record<string, any>;
+      const metadata = chunk.metadata as Record<string, any> || {};
       return {
         id: chunk.id,
         name: metadata.source || 'Documento sem nome',
@@ -120,16 +116,6 @@ export async function generateText(options: GenerationOptions): Promise<Generati
       error: error.message || 'Erro desconhecido na geração de texto'
     };
   }
-}
-
-// Função auxiliar para gerar um embedding da consulta
-async function generateQueryEmbedding(query: string): Promise<number[]> {
-  // Em produção, isso usaria a mesma API de embeddings que usamos para indexar
-  // Por ora, usaremos a nossa função simulada
-  
-  // Importar dinamicamente para evitar dependência circular
-  const { generateEmbedding } = await import('./embeddings');
-  return generateEmbedding(query);
 }
 
 // Função para geração simulada de texto quando a API falha

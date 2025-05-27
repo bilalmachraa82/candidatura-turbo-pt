@@ -58,7 +58,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       // Atualizar o conteúdo da seção no Supabase
       const { error } = await supabase
         .from('sections')
-        .update({ content: text, updated_at: new Date() })
+        .update({ 
+          content: text, 
+          updated_at: new Date().toISOString()
+        })
         .eq('project_id', projectId)
         .eq('key', sectionKey);
       
