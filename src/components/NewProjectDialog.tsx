@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -16,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { PT2030_SECTIONS } from '@/data/pt2030_sections';
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -109,29 +109,14 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
 
   const createDefaultSections = async (projectId: string) => {
     try {
-      const defaultSections = [
-        {
-          project_id: projectId,
-          key: 'analise_mercado',
-          title: 'Análise de Mercado',
-          description: 'Avaliação do mercado-alvo, tendências e oportunidades',
-          char_limit: 2500
-        },
-        {
-          project_id: projectId,
-          key: 'proposta_valor',
-          title: 'Proposta de Valor',
-          description: 'Definição do valor único oferecido ao mercado',
-          char_limit: 1500
-        },
-        {
-          project_id: projectId,
-          key: 'plano_financeiro',
-          title: 'Plano Financeiro',
-          description: 'Projeções financeiras e análise de viabilidade',
-          char_limit: 3000
-        }
-      ];
+      // Usar seções PT2030 em vez do array hard-coded
+      const defaultSections = PT2030_SECTIONS.map(section => ({
+        project_id: projectId,
+        key: section.code,
+        title: section.title,
+        description: section.description,
+        char_limit: section.charLimit
+      }));
 
       const { error } = await supabase
         .from('sections')

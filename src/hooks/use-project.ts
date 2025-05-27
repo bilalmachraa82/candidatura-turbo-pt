@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UploadedFile, ProjectSection } from '@/types/components';
 import { indexDocument } from '@/api/indexDocuments';
 import { GenerationSource } from '@/types/api';
+import { PT2030_SECTIONS } from '@/data/pt2030_sections';
 
 interface UseProjectProps {
   projectId: string | undefined;
@@ -73,42 +73,18 @@ export function useProject({ projectId }: UseProjectProps) {
           charLimit: s.char_limit || 2000
         })));
       } else {
-        const defaultSections = [
-          {
-            projectId: projectId,
-            key: 'analise_mercado',
-            title: 'Análise de Mercado',
-            description: 'Avaliação do mercado-alvo, tendências e oportunidades',
-            content: '',
-            char_limit: 2500
-          },
-          {
-            projectId: projectId,
-            key: 'proposta_valor',
-            title: 'Proposta de Valor',
-            description: 'Definição do valor único oferecido ao mercado',
-            content: '',
-            char_limit: 1500
-          },
-          {
-            projectId: projectId,
-            key: 'plano_financeiro',
-            title: 'Plano Financeiro',
-            description: 'Projeções financeiras e análise de viabilidade',
-            content: '',
-            char_limit: 3000
-          }
-        ];
+        // Criar seções usando PT2030_SECTIONS
+        const defaultSections = PT2030_SECTIONS.map(section => ({
+          project_id: projectId,
+          key: section.code,
+          title: section.title,
+          description: section.description,
+          content: '',
+          char_limit: section.charLimit
+        }));
         
         for (const section of defaultSections) {
-          await supabase.from('sections').insert({
-            project_id: section.projectId,
-            key: section.key,
-            title: section.title,
-            description: section.description,
-            content: section.content,
-            char_limit: section.char_limit
-          });
+          await supabase.from('sections').insert(section);
         }
         
         const { data: newSectionsData } = await supabase
