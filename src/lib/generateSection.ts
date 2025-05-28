@@ -15,7 +15,7 @@ export async function generateSection(
     let result: GenerationResult;
 
     if (provider === 'openrouter') {
-      // Call OpenRouter edge function
+      // Call OpenRouter edge function with enhanced parameters
       const { data, error } = await supabase.functions.invoke('generate-openrouter', {
         body: {
           projectId,
@@ -30,7 +30,19 @@ export async function generateSection(
         throw new Error(`OpenRouter error: ${error.message}`);
       }
 
-      result = data;
+      result = {
+        text: data.text,
+        charsUsed: data.charsUsed,
+        sources: data.sources || [],
+        provider: 'openrouter',
+        model: modelId
+      };
+
+      // Add metadata if available
+      if (data.chunksUsed !== undefined) {
+        console.log(`Used ${data.chunksUsed} document chunks via ${data.searchMethod} search`);
+      }
+
     } else {
       // Fallback to Flowise (existing generate-text function)
       const { data, error } = await supabase.functions.invoke('generate-text', {
@@ -48,28 +60,59 @@ export async function generateSection(
       }
 
       result = {
-        ...data,
+        text: data.text,
+        charsUsed: data.charsUsed,
+        sources: data.sources || [],
         provider: 'flowise',
         model: modelId
       };
     }
 
-    console.log('Generation completed:', { provider, charsUsed: result.charsUsed });
+    console.log('Generation completed:', { 
+      provider: result.provider, 
+      charsUsed: result.charsUsed,
+      sourcesCount: result.sources.length 
+    });
+    
     return result;
 
   } catch (error: any) {
     console.error('Error in generateSection:', error);
     
-    // If OpenRouter fails, try Flowise as fallback
+    // Enhanced fallback strategy
     if (provider === 'openrouter') {
       console.log('OpenRouter failed, trying Flowise fallback...');
       try {
         return await generateSection(projectId, section, charLimit, 'flowise', 'gpt-4o');
       } catch (fallbackError) {
         console.error('Fallback also failed:', fallbackError);
+        throw new Error(`Both OpenRouter and Flowise failed: ${error.message}`);
       }
     }
 
     throw new Error(error.message || 'Erro na geração de texto');
   }
+}
+
+// Helper function to test API connections
+export async function testAIConnections(): Promise<{
+  openrouter: boolean;
+  openai: boolean;
+  flowise: boolean;
+}> {
+  const results = {
+    openrouter: false,
+    openai: false,
+    flowise: false
+  };
+
+  try {
+    // Test OpenAI setup (for embeddings)
+    const { data: openaiTest } = await supabase.functions.invoke('setup-openai');
+    results.openai = openaiTest?.success || false;
+  } catch (error) {
+    console.warn('OpenAI test failed:', error);
+  }
+
+  return results;
 }

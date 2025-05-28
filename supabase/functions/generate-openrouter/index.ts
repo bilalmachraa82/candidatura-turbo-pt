@@ -7,8 +7,42 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Generate query embedding for semantic search
+async function generateQueryEmbedding(query: string): Promise<number[]> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  
+  if (!openaiApiKey) {
+    console.warn('OPENAI_API_KEY not found, skipping semantic search');
+    return [];
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: query,
+        model: 'text-embedding-3-small',
+        encoding_format: 'float'
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data[0].embedding;
+  } catch (error) {
+    console.error('Error generating query embedding:', error);
+    return [];
+  }
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -24,45 +58,94 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // RAG: Fetch relevant document chunks
-    const { data: chunks, error: chunksError } = await supabase.rpc('match_document_chunks', {
-      query_embedding: null, // We'll use text search as fallback
-      match_threshold: 0.1,
-      match_count: 8,
-      p_project_id: projectId
-    });
+    // Create search query combining section name and context
+    const searchQuery = `${section} candidatura Portugal 2030 projecto inovação`;
+    
+    // Generate embedding for semantic search
+    const queryEmbedding = await generateQueryEmbedding(searchQuery);
+    
+    let chunks: any[] = [];
+    
+    if (queryEmbedding.length > 0) {
+      // Semantic search using embeddings
+      console.log('Performing semantic search with embeddings');
+      
+      const { data: semanticChunks, error: semanticError } = await supabase.rpc('match_document_chunks', {
+        query_embedding: `[${queryEmbedding.join(',')}]`,
+        match_threshold: 0.1,
+        match_count: 8,
+        p_project_id: projectId
+      });
 
-    if (chunksError) {
-      console.warn('Error fetching chunks, proceeding without context:', chunksError);
+      if (semanticError) {
+        console.warn('Semantic search failed:', semanticError);
+      } else {
+        chunks = semanticChunks || [];
+      }
+    }
+    
+    // Fallback to keyword search if semantic search fails or no results
+    if (chunks.length === 0) {
+      console.log('Falling back to keyword search');
+      
+      const { data: keywordChunks, error: keywordError } = await supabase
+        .from('document_chunks')
+        .select('id, content, metadata')
+        .eq('project_id', projectId)
+        .textSearch('content', searchQuery.split(' ').join(' | '))
+        .limit(6);
+      
+      if (!keywordError && keywordChunks) {
+        chunks = keywordChunks.map(chunk => ({
+          ...chunk,
+          similarity: 0.5 // Default similarity for keyword search
+        }));
+      }
     }
 
+    // Build context from retrieved chunks
     const context = chunks && chunks.length > 0 
-      ? chunks.map((chunk: any) => `• ${chunk.content}`).join('\n')
+      ? chunks
+          .sort((a, b) => (b.similarity || 0) - (a.similarity || 0))
+          .slice(0, 6)
+          .map((chunk: any) => `• ${chunk.content}`)
+          .join('\n')
       : 'Não foram encontrados documentos relevantes para este projeto.';
 
-    console.log('RAG context length:', context.length);
+    console.log(`RAG context: ${context.length} characters from ${chunks.length} chunks`);
 
-    // Prepare messages for OpenRouter
-    const messages = [
-      {
-        role: "system",
-        content: `Estás a escrever para o formulário PT2030, secção "${section}". Regras:
+    // Enhanced prompt for PT2030 applications
+    const systemPrompt = `És um especialista em candidaturas ao programa PT2030 (Portugal 2030). 
+
+TAREFA: Escrever conteúdo técnico para a secção "${section}" de uma candidatura.
+
+REGRAS OBRIGATÓRIAS:
 1. Português de Portugal, formal e técnico
-2. Usa apenas as fontes documentais fornecidas abaixo
-3. Máximo ${charLimit} caracteres
-4. Se excederes, corta elegantemente e termina com "..."
-5. Foca em aspectos inovadores e de impacto económico
-6. Inclui métricas quantificáveis quando possível
+2. Máximo ${charLimit} caracteres
+3. Usar APENAS as fontes documentais fornecidas
+4. Incluir métricas quantificáveis quando possível
+5. Focar em inovação, impacto económico e sustentabilidade
+6. Estrutura clara com parágrafos bem definidos
+7. Se excederes o limite, corta elegantemente com "..."
 
-==== FONTES DOCUMENTAIS ====
+CRITÉRIOS PT2030:
+- Demonstrar inovação tecnológica e metodológica
+- Evidenciar viabilidade económica e técnica
+- Mostrar impacto territorial e social
+- Comprovar sustentabilidade ambiental
+- Indicar parcerias estratégicas
+
+==== CONTEXTO DOCUMENTAL ====
 ${context}
 ====
 
-Gera uma resposta completa e bem estruturada para a secção "${section}".`
-      },
+Gera conteúdo profissional e convincente para a secção "${section}".`;
+
+    const messages = [
+      { role: "system", content: systemPrompt },
       { 
         role: "user", 
-        content: `Gera agora o conteúdo para a secção "${section}" do formulário PT2030.` 
+        content: `Redige agora o conteúdo para "${section}" baseado nos documentos fornecidos. Máximo ${charLimit} caracteres.` 
       }
     ];
 
@@ -78,10 +161,11 @@ Gera uma resposta completa e bem estruturada para a secção "${section}".`
       body: JSON.stringify({
         model,
         messages,
-        max_tokens: Math.min(1500, Math.floor(charLimit / 2)),
+        max_tokens: Math.min(2000, Math.floor(charLimit / 2)),
         temperature: 0.2,
         top_p: 0.9,
-        frequency_penalty: 0.1
+        frequency_penalty: 0.1,
+        presence_penalty: 0.05
       })
     });
 
@@ -96,9 +180,18 @@ Gera uma resposta completa e bem estruturada para a secção "${section}".`
 
     let generatedText = openRouterResult.choices?.[0]?.message?.content?.trim() || '';
     
-    // Trim to character limit
+    // Trim to character limit with smart truncation
     if (generatedText.length > charLimit) {
-      generatedText = generatedText.slice(0, charLimit - 3) + '...';
+      const truncated = generatedText.slice(0, charLimit - 3);
+      const lastSentence = truncated.lastIndexOf('.');
+      const lastParagraph = truncated.lastIndexOf('\n');
+      
+      const cutPoint = Math.max(lastSentence, lastParagraph);
+      if (cutPoint > charLimit * 0.8) {
+        generatedText = truncated.slice(0, cutPoint + 1) + '...';
+      } else {
+        generatedText = truncated + '...';
+      }
     }
 
     // Map chunks to sources for UI
@@ -106,7 +199,8 @@ Gera uma resposta completa e bem estruturada para a secção "${section}".`
       id: chunk.id || `source-${index}`,
       name: chunk.metadata?.source || `Documento ${index + 1}`,
       type: 'document',
-      reference: chunk.metadata?.page ? `Página ${chunk.metadata.page}` : 'Documento de referência'
+      reference: chunk.metadata?.page ? `Página ${chunk.metadata.page}` : 'Documento de referência',
+      similarity: chunk.similarity || 0
     })) || [];
 
     // Log generation for analytics
@@ -125,10 +219,16 @@ Gera uma resposta completa e bem estruturada para a secção "${section}".`
       charsUsed: generatedText.length,
       sources,
       provider: 'openrouter',
-      model
+      model,
+      chunksUsed: chunks.length,
+      searchMethod: queryEmbedding.length > 0 ? 'semantic' : 'keyword'
     };
 
-    console.log('OpenRouter generation completed:', { charsUsed: result.charsUsed, sourcesCount: sources.length });
+    console.log('Generation completed:', { 
+      charsUsed: result.charsUsed, 
+      sourcesCount: sources.length,
+      searchMethod: result.searchMethod
+    });
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

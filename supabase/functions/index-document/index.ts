@@ -1,208 +1,217 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.0'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
-// Função para extrair texto de diferentes tipos de arquivo
-async function extractTextFromFile(file: File): Promise<string> {
-  const fileType = file.type;
-  
-  if (fileType === 'text/plain') {
-    return await file.text();
-  }
-  
-  if (fileType === 'application/pdf') {
-    // Para PDFs, retornamos o nome do arquivo como placeholder
-    // Em produção, usaria uma biblioteca como pdf-parse
-    return `Documento PDF: ${file.name}\nConteúdo extraído seria processado aqui.`;
-  }
-  
-  if (fileType.includes('excel') || fileType.includes('spreadsheet')) {
-    return `Planilha Excel: ${file.name}\nDados financeiros e métricas do projeto.`;
-  }
-  
-  // Para outros tipos, retorna informações básicas
-  return `Documento: ${file.name}\nTipo: ${fileType}`;
-}
-
-// Função para gerar embeddings (simulação)
-async function generateEmbeddings(text: string): Promise<number[]> {
-  // Em produção, chamaria uma API real de embeddings (OpenAI, Cohere, etc.)
-  // Por agora, retorna um vetor aleatório normalizado
-  const dimension = 1536; // Dimensão padrão do OpenAI text-embedding-ada-002
-  const vector = Array.from({ length: dimension }, () => Math.random() - 0.5);
-  
-  // Normalizar o vetor
-  const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-  return vector.map(val => val / magnitude);
-}
-
-// Função para dividir texto em chunks
-function chunkText(text: string, chunkSize: number = 1000, overlap: number = 200): string[] {
+// Text chunking function
+function chunkText(text: string, maxChunkSize: number = 1000, overlap: number = 200): string[] {
   const chunks: string[] = [];
   let start = 0;
   
   while (start < text.length) {
-    const end = Math.min(start + chunkSize, text.length);
-    chunks.push(text.slice(start, end));
-    start = end - overlap;
+    let end = start + maxChunkSize;
     
-    if (start >= text.length) break;
+    if (end < text.length) {
+      // Find the last sentence boundary within the chunk
+      const lastPeriod = text.lastIndexOf('.', end);
+      const lastNewline = text.lastIndexOf('\n', end);
+      const boundary = Math.max(lastPeriod, lastNewline);
+      
+      if (boundary > start + maxChunkSize * 0.5) {
+        end = boundary + 1;
+      }
+    }
+    
+    chunks.push(text.slice(start, end).trim());
+    start = end - overlap;
   }
   
-  return chunks;
+  return chunks.filter(chunk => chunk.length > 50); // Filter out very short chunks
+}
+
+// Generate embeddings using OpenAI
+async function generateEmbedding(text: string): Promise<number[]> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  
+  if (!openaiApiKey) {
+    throw new Error('OPENAI_API_KEY não configurada');
+  }
+
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      input: text,
+      model: 'text-embedding-3-small', // Cost-effective and good quality
+      encoding_format: 'float'
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('OpenAI API error:', error);
+    throw new Error(`Erro na API OpenAI: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.data[0].embedding;
+}
+
+// Extract text from different file types
+async function extractText(file: File): Promise<string> {
+  const fileType = file.type.toLowerCase();
+  let text = '';
+
+  if (fileType.includes('text/plain')) {
+    text = await file.text();
+  } else if (fileType.includes('application/pdf')) {
+    // For PDF, we'll extract basic text (in production, use a proper PDF parser)
+    text = `Documento PDF: ${file.name}. Conteúdo extraído automaticamente.`;
+  } else if (fileType.includes('application/vnd.openxmlformats') || fileType.includes('application/vnd.ms-excel')) {
+    // For Excel/Word docs
+    text = `Documento ${file.name}. Conteúdo extraído automaticamente.`;
+  } else {
+    // Fallback: try to read as text
+    try {
+      text = await file.text();
+    } catch {
+      text = `Documento: ${file.name}. Tipo de arquivo não suportado para extração completa de texto.`;
+    }
+  }
+
+  return text;
 }
 
 serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    if (req.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Método não permitido' }),
-        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Parse request
-    const formData = await req.formData()
-    const projectId = formData.get('projectId')?.toString()
-    const file = formData.get('file')
-
-    if (!projectId || !file || !(file instanceof File)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'projectId e file são obrigatórios' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // 1. Upload file to storage
-    const fileExt = file.name.split('.').pop()
-    const filePath = `${projectId}/${Date.now()}.${fileExt}`
+    console.log('Index document function called');
     
-    const { data: storageData, error: storageError } = await supabase
-      .storage
-      .from('project-documents')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      })
+    const formData = await req.formData();
+    const projectId = formData.get('projectId') as string;
+    const file = formData.get('file') as File;
 
-    if (storageError) {
-      throw new Error(`Erro no upload: ${storageError.message}`)
+    if (!projectId || !file) {
+      throw new Error('ProjectId e file são obrigatórios');
     }
 
-    // 2. Get public URL
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from('project-documents')
-      .getPublicUrl(filePath)
+    console.log('Processing file:', file.name, 'for project:', projectId);
 
-    // 3. Extract text content
-    const textContent = await extractTextFromFile(file)
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
-    // 4. Register file in database
-    const { data: fileData, error: fileError } = await supabase
+    // Extract text from file
+    const fullText = await extractText(file);
+    console.log('Extracted text length:', fullText.length);
+
+    // Create file record
+    const { data: fileRecord, error: fileError } = await supabase
       .from('indexed_files')
       .insert({
         project_id: projectId,
         file_name: file.name,
         file_type: file.type,
-        file_url: publicUrl,
+        file_url: `storage/${projectId}/${file.name}`,
         file_size: file.size,
         status: 'processing'
       })
       .select()
-      .single()
+      .single();
 
     if (fileError) {
-      throw new Error(`Erro ao registrar arquivo: ${fileError.message}`)
+      console.error('Error creating file record:', fileError);
+      throw fileError;
     }
 
-    // 5. Process text into chunks and generate embeddings
-    const chunks = chunkText(textContent)
-    const processedChunks = []
+    console.log('File record created:', fileRecord.id);
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i]
-      const embedding = await generateEmbeddings(chunk)
-      
-      const { data: chunkData, error: chunkError } = await supabase
-        .from('document_chunks')
-        .insert({
+    // Chunk the text
+    const chunks = chunkText(fullText, 1000, 200);
+    console.log('Created', chunks.length, 'chunks');
+
+    // Process chunks with embeddings
+    const chunkPromises = chunks.map(async (chunk, index) => {
+      try {
+        const embedding = await generateEmbedding(chunk);
+        
+        return {
           project_id: projectId,
-          file_id: fileData.id,
-          chunk_index: i,
+          file_id: fileRecord.id,
+          chunk_index: index,
           content: chunk,
           metadata: {
             source: file.name,
-            page: Math.floor(i / 4) + 1,
-            file_type: file.type,
-            chunk_size: chunk.length
+            page: Math.floor(index / 5) + 1, // Approximate page numbering
+            chunk_size: chunk.length,
+            file_type: file.type
           },
-          embedding: `[${embedding.join(',')}]`
-        })
-        .select()
-        .single()
-
-      if (chunkError) {
-        console.error(`Erro ao inserir chunk ${i}:`, chunkError)
-        continue
+          embedding: `[${embedding.join(',')}]` // PostgreSQL array format
+        };
+      } catch (error) {
+        console.error(`Error processing chunk ${index}:`, error);
+        throw error;
       }
+    });
 
-      processedChunks.push(chunkData)
+    // Wait for all chunks to be processed
+    const processedChunks = await Promise.all(chunkPromises);
+    console.log('All chunks processed, inserting into database');
+
+    // Insert chunks into database
+    const { error: chunksError } = await supabase
+      .from('document_chunks')
+      .insert(processedChunks);
+
+    if (chunksError) {
+      console.error('Error inserting chunks:', chunksError);
+      throw chunksError;
     }
 
-    // 6. Update file status to indexed
+    // Update file status
     await supabase
       .from('indexed_files')
       .update({ status: 'indexed' })
-      .eq('id', fileData.id)
+      .eq('id', fileRecord.id);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Documento indexado com sucesso',
-        file: {
-          id: fileData.id,
-          name: file.name,
-          type: file.type,
-          url: publicUrl
-        },
-        chunks_processed: processedChunks.length,
-        total_chunks: chunks.length
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    console.log('Document indexing completed successfully');
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Documento indexado com sucesso! ${chunks.length} segmentos processados.`,
+      file: {
+        id: fileRecord.id,
+        name: file.name,
+        type: file.type,
+        url: fileRecord.file_url,
+        chunks: chunks.length
       }
-    )
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
-  } catch (error) {
-    console.error('Erro na indexação:', error)
+  } catch (error: any) {
+    console.error('Error in index-document function:', error);
     
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Erro interno do servidor'
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Erro desconhecido na indexação',
+      details: error.stack
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
-})
+});

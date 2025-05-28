@@ -1,266 +1,298 @@
 
-import React, { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileText, CheckCircle, AlertCircle, Brain } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { indexDocument } from '@/api/indexDocuments';
 
 interface EnhancedUploadFormProps {
-  title: string;
-  description: string;
   projectId: string;
-  acceptedFileTypes?: string;
-  onFileUploaded: (file: {name: string, url: string, type: string}) => void;
+  onFileIndexed?: (file: any) => void;
+}
+
+interface UploadState {
+  file: File | null;
+  status: 'idle' | 'uploading' | 'processing' | 'completed' | 'error';
+  progress: number;
+  message: string;
+  result?: any;
 }
 
 const EnhancedUploadForm: React.FC<EnhancedUploadFormProps> = ({
-  title,
-  description,
   projectId,
-  acceptedFileTypes = "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  onFileUploaded
+  onFileIndexed
 }) => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'indexing' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<{name: string, size: number, type: string} | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>({
+    file: null,
+    status: 'idle',
+    progress: 0,
+    message: ''
+  });
+  
   const { toast } = useToast();
 
-  const resetForm = () => {
-    setUploadStatus('idle');
-    setUploadProgress(0);
-    setErrorMessage(null);
-    setUploadedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadState({
+        file,
+        status: 'idle',
+        progress: 0,
+        message: `Ficheiro selecionado: ${file.name}`
+      });
     }
-  };
+  }, []);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getFileTypeIcon = (type: string) => {
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('excel') || type.includes('spreadsheet')) return '📊';
-    if (type.includes('word') || type.includes('document')) return '📝';
-    return '📎';
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setUploadedFile({
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
+  const handleUpload = async () => {
+    if (!uploadState.file) return;
 
     try {
-      setIsUploading(true);
-      setUploadStatus('uploading');
-      setErrorMessage(null);
-      
+      setUploadState(prev => ({
+        ...prev,
+        status: 'uploading',
+        progress: 10,
+        message: 'A carregar ficheiro...'
+      }));
+
       // Simulate upload progress
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 50) {
-            clearInterval(progressInterval);
-            setUploadStatus('indexing');
-            return 50;
+        setUploadState(prev => {
+          if (prev.progress < 40) {
+            return { ...prev, progress: prev.progress + 5 };
           }
-          return prev + Math.random() * 10;
+          return prev;
         });
-      }, 200);
-      
-      // Call indexing function
-      const result = await indexDocument(projectId, file);
+      }, 100);
+
+      setTimeout(() => {
+        setUploadState(prev => ({
+          ...prev,
+          status: 'processing',
+          progress: 50,
+          message: 'A processar e indexar documento...'
+        }));
+      }, 1000);
+
+      // Call indexing API
+      const result = await indexDocument(projectId, uploadState.file);
       
       clearInterval(progressInterval);
-      
+
       if (result.success) {
-        // Simulate indexing progress
-        let indexProgress = 50;
-        const indexInterval = setInterval(() => {
-          indexProgress += 10;
-          setUploadProgress(indexProgress);
-          if (indexProgress >= 100) {
-            clearInterval(indexInterval);
-            setUploadStatus('success');
-          }
-        }, 300);
-        
+        setUploadState(prev => ({
+          ...prev,
+          status: 'completed',
+          progress: 100,
+          message: `Documento indexado com sucesso! ${result.file?.chunks || 0} segmentos processados.`,
+          result
+        }));
+
         toast({
-          title: "Documento processado com sucesso",
-          description: `${file.name} foi carregado e indexado para RAG.`,
+          title: "Documento indexado",
+          description: result.message || "O documento foi processado e está pronto para uso."
         });
-        
-        if (onFileUploaded && result.file) {
-          onFileUploaded(result.file);
+
+        if (onFileIndexed && result.file) {
+          onFileIndexed(result.file);
         }
-        
-        // Reset form after 5 seconds
-        setTimeout(resetForm, 5000);
       } else {
-        setUploadStatus('error');
-        setErrorMessage(result.message);
-        
-        toast({
-          variant: "destructive",
-          title: "Erro no processamento",
-          description: result.message,
-        });
+        throw new Error(result.message || 'Erro na indexação');
       }
+
     } catch (error: any) {
-      console.error("Upload error:", error);
-      setUploadStatus('error');
-      setErrorMessage(error.message || "Erro desconhecido durante o upload");
+      console.error('Upload error:', error);
       
+      setUploadState(prev => ({
+        ...prev,
+        status: 'error',
+        progress: 0,
+        message: `Erro: ${error.message}`
+      }));
+
       toast({
         variant: "destructive",
         title: "Erro no upload",
-        description: error.message || "Ocorreu um erro durante o carregamento do arquivo",
+        description: error.message || "Não foi possível processar o documento."
       });
-    } finally {
-      setIsUploading(false);
     }
   };
 
-  const getStatusMessage = () => {
-    switch (uploadStatus) {
+  const resetUpload = () => {
+    setUploadState({
+      file: null,
+      status: 'idle',
+      progress: 0,
+      message: ''
+    });
+  };
+
+  const getStatusIcon = () => {
+    switch (uploadState.status) {
       case 'uploading':
-        return 'A carregar ficheiro...';
-      case 'indexing':
-        return 'A indexar para RAG...';
-      case 'success':
-        return 'Processamento concluído!';
+      case 'processing':
+        return <Loader2 className="h-5 w-5 animate-spin text-blue-600" />;
+      case 'completed':
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'error':
-        return 'Erro no processamento';
+        return <AlertCircle className="h-5 w-5 text-red-600" />;
       default:
-        return '';
+        return <FileText className="h-5 w-5 text-gray-400" />;
     }
   };
 
   const getStatusColor = () => {
-    switch (uploadStatus) {
+    switch (uploadState.status) {
       case 'uploading':
-      case 'indexing':
-        return 'text-blue-600';
-      case 'success':
-        return 'text-green-600';
+      case 'processing':
+        return 'bg-blue-500';
+      case 'completed':
+        return 'bg-green-500';
       case 'error':
-        return 'text-red-600';
+        return 'bg-red-500';
       default:
-        return 'text-gray-600';
+        return 'bg-gray-300';
     }
   };
 
   return (
-    <Card className="shadow-sm border-l-4 border-l-pt-green">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-pt-blue">
-          <FileText className="h-5 w-5" />
-          {title}
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Upload className="h-5 w-5" />
+          Upload de Documentos
         </CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>
+          Carregue documentos PDF, Word ou Excel para indexação automática com IA
+        </CardDescription>
       </CardHeader>
-      <CardContent>
+      
+      <CardContent className="space-y-6">
+        {/* File Selection */}
         <div className="space-y-4">
-          {uploadStatus === 'idle' && (
-            <div className="space-y-4">
-              <div 
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-pt-green transition-colors cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-lg font-medium text-gray-700 mb-2">
-                  Clique para selecionar ficheiro
-                </p>
-                <p className="text-sm text-gray-500">
-                  Suporta PDF, Word e Excel
-                </p>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-upload"
+              disabled={uploadState.status === 'uploading' || uploadState.status === 'processing'}
+            />
+            <label
+              htmlFor="file-upload"
+              className="cursor-pointer flex flex-col items-center space-y-2"
+            >
+              <Upload className="h-8 w-8 text-gray-400" />
+              <div className="text-sm text-gray-600">
+                <span className="font-medium text-blue-600 hover:text-blue-500">
+                  Clique para selecionar
+                </span>
+                {' '}ou arraste ficheiros aqui
+              </div>
+              <div className="text-xs text-gray-500">
+                Suporta: PDF, Word, Excel, TXT (máx. 10MB)
+              </div>
+            </label>
+          </div>
+
+          {/* Selected File Info */}
+          {uploadState.file && (
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                {getStatusIcon()}
+                <div>
+                  <div className="font-medium text-sm">{uploadState.file.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {(uploadState.file.size / 1024 / 1024).toFixed(2)} MB
+                  </div>
+                </div>
               </div>
               
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileChange}
-                accept={acceptedFileTypes}
-                className="hidden"
-              />
-            </div>
-          )}
-          
-          {(uploadStatus === 'uploading' || uploadStatus === 'indexing') && uploadedFile && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
-                <span className="text-2xl">{getFileTypeIcon(uploadedFile.type)}</span>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{uploadedFile.name}</p>
-                  <p className="text-sm text-gray-500">{formatFileSize(uploadedFile.size)}</p>
-                </div>
-                <Badge variant="outline" className={getStatusColor()}>
-                  {uploadStatus === 'indexing' && <Brain className="h-3 w-3 mr-1" />}
-                  {getStatusMessage()}
+              <div className="flex items-center gap-2">
+                <Badge variant={
+                  uploadState.status === 'completed' ? 'default' :
+                  uploadState.status === 'error' ? 'destructive' :
+                  uploadState.status === 'idle' ? 'secondary' : 'outline'
+                }>
+                  {uploadState.status === 'idle' && 'Pronto'}
+                  {uploadState.status === 'uploading' && 'A carregar'}
+                  {uploadState.status === 'processing' && 'A processar'}
+                  {uploadState.status === 'completed' && 'Concluído'}
+                  {uploadState.status === 'error' && 'Erro'}
                 </Badge>
               </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className={getStatusColor()}>{getStatusMessage()}</span>
-                  <span className="font-medium">{Math.round(uploadProgress)}%</span>
-                </div>
-                <Progress value={uploadProgress} className="h-2" />
-                
-                {uploadStatus === 'indexing' && (
-                  <div className="flex items-center gap-2 text-xs text-blue-600">
-                    <Brain className="h-3 w-3 animate-pulse" />
-                    <span>Processando documento para busca semântica...</span>
-                  </div>
-                )}
-              </div>
             </div>
           )}
-          
-          {uploadStatus === 'success' && uploadedFile && (
-            <div className="p-4 flex items-center space-x-3 text-green-600 bg-green-50 rounded-lg">
-              <CheckCircle className="h-6 w-6" />
-              <div className="flex-1">
-                <p className="font-medium">Ficheiro processado com sucesso</p>
-                <p className="text-sm text-green-700">
-                  {uploadedFile.name} está agora disponível para geração IA
-                </p>
-              </div>
+        </div>
+
+        {/* Progress */}
+        {(uploadState.status === 'uploading' || uploadState.status === 'processing') && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>{uploadState.message}</span>
+              <span>{uploadState.progress}%</span>
             </div>
-          )}
-          
-          {uploadStatus === 'error' && (
-            <div className="p-4 flex flex-col space-y-3 text-red-600 bg-red-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="h-5 w-5" />
-                <span className="font-medium">Erro no processamento</span>
-              </div>
-              {errorMessage && <p className="text-sm">{errorMessage}</p>}
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={resetForm}
-                className="self-end"
-              >
-                Tentar novamente
-              </Button>
+            <Progress value={uploadState.progress} className={`h-2 ${getStatusColor()}`} />
+          </div>
+        )}
+
+        {/* Status Message */}
+        {uploadState.message && uploadState.status !== 'uploading' && uploadState.status !== 'processing' && (
+          <div className={`p-3 rounded-lg text-sm ${
+            uploadState.status === 'completed' ? 'bg-green-50 text-green-800 border border-green-200' :
+            uploadState.status === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+            'bg-blue-50 text-blue-800 border border-blue-200'
+          }`}>
+            {uploadState.message}
+          </div>
+        )}
+
+        {/* Results */}
+        {uploadState.status === 'completed' && uploadState.result && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 className="font-medium text-green-800 mb-2">Indexação Concluída</h4>
+            <div className="space-y-1 text-sm text-green-700">
+              <div>📄 Nome: {uploadState.result.file?.name}</div>
+              <div>🔍 Segmentos: {uploadState.result.file?.chunks || 0}</div>
+              <div>✅ Status: Pronto para geração IA</div>
             </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button
+            onClick={handleUpload}
+            disabled={!uploadState.file || uploadState.status === 'uploading' || uploadState.status === 'processing'}
+            className="flex-1"
+          >
+            {uploadState.status === 'uploading' || uploadState.status === 'processing' ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                A processar...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Carregar e Indexar
+              </>
+            )}
+          </Button>
+
+          {(uploadState.status === 'completed' || uploadState.status === 'error') && (
+            <Button variant="outline" onClick={resetUpload}>
+              Novo Upload
+            </Button>
           )}
+        </div>
+
+        {/* Help Text */}
+        <div className="text-xs text-gray-500 space-y-1">
+          <div>💡 <strong>Dica:</strong> Documentos mais detalhados geram melhores resultados IA</div>
+          <div>🔒 <strong>Segurança:</strong> Os documentos são processados de forma segura e privada</div>
         </div>
       </CardContent>
     </Card>
