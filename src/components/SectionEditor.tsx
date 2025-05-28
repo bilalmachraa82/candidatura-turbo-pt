@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { generateSection } from '@/lib/generateSection';
 import ModelSelector from '@/components/ModelSelector';
 import ChatThread from '@/components/ChatThread';
-import { GenerationSource } from '@/types/api';
+import { GenerationSource, adaptLegacySource } from '@/types/api';
 
 interface SectionEditorProps {
   title: string;
@@ -103,13 +102,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       setText(result.text);
       onTextChange(result.text);
       
-      // Atualizar fontes
+      // Atualizar fontes usando adapter para converter formato legacy
       if (result.sources) {
-        const sources: GenerationSource[] = result.sources.map(source => ({
+        const sources: GenerationSource[] = result.sources.map(source => adaptLegacySource({
           id: source.id,
           name: source.name,
           reference: source.reference,
-          type: source.type as 'pdf' | 'excel' | 'document'
+          type: source.type
         }));
         onSourcesUpdate(sources);
       }

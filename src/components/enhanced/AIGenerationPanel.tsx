@@ -50,7 +50,7 @@ const AIGenerationPanel: React.FC<AIGenerationPanelProps> = ({
       });
 
       if (result.success) {
-        onGenerated(result.text, result.sources);
+        onGenerated(result.text || '', result.sources || []);
         toast({
           title: "Conteúdo gerado com sucesso",
           description: `${result.charsUsed} caracteres gerados usando ${selectedModel}`,

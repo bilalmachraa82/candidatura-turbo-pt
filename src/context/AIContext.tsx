@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, ReactNode } from 'react';
 import { generateSection } from '@/lib/generateSection';
-import { GenerationSource } from '@/types/api';
+import { GenerationSource, adaptLegacySource } from '@/types/api';
 
 interface GenerateTextParams {
   projectId: string;
@@ -88,15 +89,15 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
         modelId
       );
 
-      // Transform to legacy format for compatibility
+      // Transform to legacy format for compatibility using adapter function
       return {
         success: true,
         text: result.text,
-        sources: result.sources?.map(source => ({
+        sources: result.sources?.map(source => adaptLegacySource({
           id: source.id,
           name: source.name,
           reference: source.reference,
-          type: source.type as 'pdf' | 'excel' | 'document'
+          type: source.type
         })) || [],
         provider: result.provider,
         charsUsed: result.charsUsed

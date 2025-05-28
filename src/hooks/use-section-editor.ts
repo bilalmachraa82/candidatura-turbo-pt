@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { generateSection } from '@/lib/generateSection';
-import { GenerationSource } from '@/types/api';
+import { GenerationSource, adaptLegacySource } from '@/types/api';
 import { getSectionRecommendedModel } from '@/types/ai';
 
 interface UseSectionEditorProps {
@@ -95,13 +95,13 @@ export const useSectionEditor = ({
       setText(result.text);
       onTextChange(result.text);
       
-      // Actualizar fontes
+      // Actualizar fontes usando adapter para converter formato legacy
       if (result.sources) {
-        const sources: GenerationSource[] = result.sources.map(source => ({
+        const sources: GenerationSource[] = result.sources.map(source => adaptLegacySource({
           id: source.id,
           name: source.name,
           reference: source.reference,
-          type: source.type as 'pdf' | 'excel' | 'document'
+          type: source.type
         }));
         onSourcesUpdate(sources);
       }
