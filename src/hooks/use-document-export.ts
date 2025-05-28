@@ -1,70 +1,100 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { ExportResult } from '@/types/api';
 
-export function useDocumentExport() {
+interface ExportOptions {
+  projectId: string;
+  format: 'pdf' | 'docx';
+  language: 'pt' | 'en';
+  sections?: string[];
+}
+
+interface ExportResult {
+  success: boolean;
+  downloadUrl?: string;
+  filename?: string;
+  error?: string;
+}
+
+export const useDocumentExport = () => {
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const { toast } = useToast();
 
-  const exportProjectDocument = async (
-    projectId: string,
-    format: 'pdf' | 'docx' = 'pdf',
-    language: 'pt' | 'en' = 'pt'
-  ): Promise<ExportResult | null> => {
+  const exportDocument = async (options: ExportOptions): Promise<ExportResult> => {
     setIsExporting(true);
-    
-    try {
-      const response = await fetch(
-        `/api/export?projectId=${projectId}&format=${format}&language=${language}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+    setExportProgress(0);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Export failed with status: ${response.status}`);
-      }
-      
-      const exportResult: ExportResult = await response.json();
-      
-      // Trigger file download
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = exportResult.url;
-      a.download = exportResult.fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(exportResult.url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Exportação concluída",
-        description: `O documento foi exportado com sucesso em formato ${format.toUpperCase()}.`,
+    try {
+      // Simular progresso
+      const progressInterval = setInterval(() => {
+        setExportProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(options),
       });
-      
-      return exportResult;
+
+      clearInterval(progressInterval);
+      setExportProgress(100);
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        toast({
+          title: "Exportação concluída",
+          description: `Documento exportado com sucesso em ${options.format.toUpperCase()}`
+        });
+
+        return {
+          success: true,
+          downloadUrl: result.downloadUrl,
+          filename: result.filename
+        };
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro na exportação');
+      }
     } catch (error: any) {
-      console.error('Error in document export:', error);
+      console.error('Export error:', error);
       
       toast({
         variant: "destructive",
         title: "Erro na exportação",
-        description: error.message || "Não foi possível exportar o documento.",
+        description: error.message || "Não foi possível exportar o documento"
       });
-      
-      return null;
+
+      return {
+        success: false,
+        error: error.message
+      };
     } finally {
       setIsExporting(false);
+      setTimeout(() => setExportProgress(0), 1000);
+    }
+  };
+
+  const checkExportReadiness = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/export?projectId=${projectId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+      throw new Error('Erro ao verificar estado do projeto');
+    } catch (error) {
+      console.error('Error checking export readiness:', error);
+      return null;
     }
   };
 
   return {
-    exportProjectDocument,
-    isExporting
+    exportDocument,
+    checkExportReadiness,
+    isExporting,
+    exportProgress
   };
-}
+};
