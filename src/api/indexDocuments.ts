@@ -2,7 +2,6 @@
 import { supabase } from '@/lib/supabase';
 import { IndexingResult } from '@/types/api';
 
-// Function to upload and index a document
 export async function indexDocument(
   projectId: string,
   file: File
@@ -13,39 +12,28 @@ export async function indexDocument(
     formData.append('projectId', projectId);
     formData.append('file', file);
 
-    // Get environment variables
-    const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL;
-    const FLOWISE_API_KEY = import.meta.env.VITE_FLOWISE_API_KEY;
-
-    if (!FLOWISE_URL) {
-      throw new Error('FLOWISE_URL não está configurado');
-    }
-
-    // Call the /api/index endpoint
-    const response = await fetch(`${FLOWISE_URL}/api/index`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FLOWISE_API_KEY}`
-      },
+    // Call the Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('index-document', {
       body: formData
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error ${response.status}`);
+    if (error) {
+      throw new Error(error.message);
     }
 
-    const result = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Erro na indexação do documento');
+    }
 
-    // Update the file status in our local database if needed
-    if (result.success && result.file) {
+    // Update local database if needed
+    if (data.file) {
       try {
         await supabase.from('indexed_files').upsert({
-          id: result.file.id,
+          id: data.file.id,
           project_id: projectId,
-          file_name: result.file.name,
-          file_type: result.file.type,
-          file_url: result.file.url,
+          file_name: data.file.name,
+          file_type: data.file.type,
+          file_url: data.file.url,
           status: 'indexed',
           created_at: new Date().toISOString()
         });
@@ -54,7 +42,12 @@ export async function indexDocument(
       }
     }
 
-    return result;
+    return {
+      success: true,
+      documentId: data.file?.id,
+      message: data.message,
+      file: data.file
+    };
   } catch (error: any) {
     console.error('Error indexing document:', error);
     return {
