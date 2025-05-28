@@ -2,10 +2,8 @@
 export type AIModel = 
   // OpenRouter Models 2025 - Premium
   | 'anthropic/claude-4-sonnet'
-  | 'anthropic/claude-3.5-sonnet-20241022'
   | 'google/gemini-2.5-pro'
   | 'openai/gpt-4.1'
-  | 'openai/gpt-4o'
   // OpenRouter Models 2025 - Rápido & Eficaz
   | 'google/gemini-2.5-flash'
   | 'google/gemini-2.0-flash-thinking-exp'
@@ -14,11 +12,7 @@ export type AIModel =
   | 'meta-llama/llama-3.3-70b-instruct'
   // OpenRouter Models - Casos Especiais
   | 'openai/o1-mini'
-  | 'anthropic/claude-3-opus'
-  // Flowise (legacy)
-  | 'gpt-4o' 
-  | 'claude-3-opus' 
-  | 'gemini-pro';
+  | 'anthropic/claude-3-opus';
 
 export interface ModelProvider {
   provider: 'openrouter' | 'flowise';

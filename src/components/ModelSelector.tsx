@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   Select,
@@ -27,12 +28,6 @@ const MODELS = [
         specialty: 'Novo modelo mais avançado da Anthropic'
       },
       { 
-        id: 'anthropic/claude-3.5-sonnet-20241022', 
-        label: 'Claude 3.5 Sonnet', 
-        cost: '€€€',
-        specialty: 'Melhor para escrita técnica e análise'
-      },
-      { 
         id: 'google/gemini-2.5-pro', 
         label: 'Gemini 2.5 Pro', 
         cost: '€€€',
@@ -43,12 +38,6 @@ const MODELS = [
         label: 'GPT-4.1', 
         cost: '€€€€',
         specialty: 'Última versão GPT com capacidades avançadas'
-      },
-      { 
-        id: 'openai/gpt-4o', 
-        label: 'GPT-4o', 
-        cost: '€€€',
-        specialty: 'Consistente para planos financeiros'
       }
     ]
   },
@@ -103,18 +92,6 @@ const MODELS = [
         label: 'Claude 3 Opus', 
         cost: '€€€€',
         specialty: 'Máxima criatividade'
-      }
-    ]
-  },
-  {
-    provider: 'flowise',
-    group: '🔗 Flowise (Legacy)',
-    items: [
-      { 
-        id: 'gpt-4o', 
-        label: 'GPT-4o (Flowise)', 
-        cost: '€€€',
-        specialty: 'Fallback via Flowise'
       }
     ]
   }

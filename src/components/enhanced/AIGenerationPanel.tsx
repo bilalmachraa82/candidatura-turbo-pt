@@ -7,6 +7,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Brain, Zap, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateText } from '@/api/generateText';
+import ModelSelector from '@/components/ModelSelector';
 
 interface AIGenerationPanelProps {
   projectId: string;
@@ -17,13 +18,6 @@ interface AIGenerationPanelProps {
   disabled?: boolean;
 }
 
-const AI_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o (Recomendado)', description: 'Mais avançado e preciso' },
-  { value: 'gpt-4', label: 'GPT-4', description: 'Equilibrio entre qualidade e velocidade' },
-  { value: 'claude-3', label: 'Claude 3', description: 'Excelente para texto técnico' },
-  { value: 'gemini-pro', label: 'Gemini Pro', description: 'Rápido e eficiente' }
-];
-
 const AIGenerationPanel: React.FC<AIGenerationPanelProps> = ({
   projectId,
   sectionKey,
@@ -33,7 +27,10 @@ const AIGenerationPanel: React.FC<AIGenerationPanelProps> = ({
   disabled = false
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  const [selectedModel, setSelectedModel] = useState<{ provider: string; id: string }>({
+    provider: 'openrouter',
+    id: 'google/gemini-2.5-flash'
+  });
   const [language, setLanguage] = useState('pt');
   const { toast } = useToast();
 
@@ -45,7 +42,7 @@ const AIGenerationPanel: React.FC<AIGenerationPanelProps> = ({
         projectId,
         section: sectionKey,
         charLimit,
-        model: selectedModel,
+        model: selectedModel.id,
         language
       });
 
@@ -53,7 +50,7 @@ const AIGenerationPanel: React.FC<AIGenerationPanelProps> = ({
         onGenerated(result.text || '', result.sources || []);
         toast({
           title: "Conteúdo gerado com sucesso",
-          description: `${result.charsUsed} caracteres gerados usando ${selectedModel}`,
+          description: `${result.charsUsed} caracteres gerados usando ${selectedModel.id.split('/').pop()}`,
         });
       } else {
         throw new Error(result.error || 'Erro na geração');
@@ -85,21 +82,11 @@ const AIGenerationPanel: React.FC<AIGenerationPanelProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Modelo de IA</label>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AI_MODELS.map((model) => (
-                  <SelectItem key={model.value} value={model.value}>
-                    <div>
-                      <div className="font-medium">{model.label}</div>
-                      <div className="text-xs text-gray-500">{model.description}</div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ModelSelector 
+              value={selectedModel}
+              onChange={setSelectedModel}
+              disabled={isGenerating}
+            />
           </div>
 
           <div className="space-y-2">
