@@ -73,7 +73,9 @@ const Header: React.FC = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/dashboard" className="flex items-center">
-              <LogoPT2030 className="h-8 w-auto" />
+              <div className="h-8 w-auto">
+                <LogoPT2030 />
+              </div>
             </Link>
           </div>
 
