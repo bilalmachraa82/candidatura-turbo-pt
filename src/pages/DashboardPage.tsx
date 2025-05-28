@@ -9,7 +9,7 @@ import Layout from '@/components/Layout';
 import NewProjectDialog from '@/components/NewProjectDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
 import AuthStatus from '@/components/AuthStatus';
 
