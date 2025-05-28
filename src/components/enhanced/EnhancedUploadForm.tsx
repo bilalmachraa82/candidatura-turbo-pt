@@ -12,7 +12,7 @@ interface EnhancedUploadFormProps {
   description: string;
   projectId: string;
   acceptedFileTypes?: string;
-  onFileUploaded?: (file: { name: string; url: string; type: string }) => void;
+  onFileUploaded?: (file: { name: string; url: string; type: string; chunks?: number }) => void;
 }
 
 interface UploadState {
@@ -113,7 +113,8 @@ const EnhancedUploadForm: React.FC<EnhancedUploadFormProps> = ({
           onFileUploaded({
             name: result.file.name,
             url: result.file.url,
-            type: result.file.type
+            type: result.file.type,
+            chunks: result.file.chunks
           });
         }
       } else {
