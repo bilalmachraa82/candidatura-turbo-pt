@@ -10,8 +10,18 @@ interface UseProjectProps {
   projectId: string | undefined;
 }
 
+interface ProjectData {
+  id: string;
+  title: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  status: string;
+}
+
 export function useProject({ projectId }: UseProjectProps) {
-  const [project, setProject] = useState<{name: string, status: string} | null>(null);
+  const [project, setProject] = useState<ProjectData | null>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [sections, setSections] = useState<ProjectSection[]>([]);
   const [sources, setSources] = useState<any[]>([]);
@@ -51,7 +61,12 @@ export function useProject({ projectId }: UseProjectProps) {
       if (projectError) throw projectError;
       
       setProject({
-        name: projectData.title,
+        id: projectData.id,
+        title: projectData.title,
+        description: projectData.description,
+        created_at: projectData.created_at,
+        updated_at: projectData.updated_at,
+        user_id: projectData.user_id,
         status: projectData.status || 'draft'
       });
 
