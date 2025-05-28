@@ -9,8 +9,11 @@ import { useToast } from '@/hooks/use-toast';
 import { indexDocument } from '@/api/indexDocuments';
 
 interface EnhancedUploadFormProps {
+  title: string;
+  description: string;
   projectId: string;
-  onFileIndexed?: (file: any) => void;
+  acceptedFileTypes?: string;
+  onFileUploaded?: (file: { name: string; url: string; type: string }) => void;
 }
 
 interface UploadState {
@@ -18,12 +21,24 @@ interface UploadState {
   status: 'idle' | 'uploading' | 'processing' | 'completed' | 'error';
   progress: number;
   message: string;
-  result?: any;
+  result?: {
+    file?: {
+      id: string;
+      name: string;
+      type: string;
+      url: string;
+      chunks?: number;
+    };
+    message?: string;
+  };
 }
 
 const EnhancedUploadForm: React.FC<EnhancedUploadFormProps> = ({
+  title,
+  description,
   projectId,
-  onFileIndexed
+  acceptedFileTypes = ".pdf,.doc,.docx,.xls,.xlsx,.txt",
+  onFileUploaded
 }) => {
   const [uploadState, setUploadState] = useState<UploadState>({
     file: null,
@@ -95,8 +110,12 @@ const EnhancedUploadForm: React.FC<EnhancedUploadFormProps> = ({
           description: result.message || "O documento foi processado e está pronto para uso."
         });
 
-        if (onFileIndexed && result.file) {
-          onFileIndexed(result.file);
+        if (onFileUploaded && result.file) {
+          onFileUploaded({
+            name: result.file.name,
+            url: result.file.url,
+            type: result.file.type
+          });
         }
       } else {
         throw new Error(result.message || 'Erro na indexação');
@@ -158,14 +177,14 @@ const EnhancedUploadForm: React.FC<EnhancedUploadFormProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Upload className="h-5 w-5" />
-          Upload de Documentos
+          {title}
         </CardTitle>
         <CardDescription>
-          Carregue documentos PDF, Word ou Excel para indexação automática com IA
+          {description}
         </CardDescription>
       </CardHeader>
       
@@ -175,14 +194,14 @@ const EnhancedUploadForm: React.FC<EnhancedUploadFormProps> = ({
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <input
               type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+              accept={acceptedFileTypes}
               onChange={handleFileSelect}
               className="hidden"
-              id="file-upload"
+              id={`file-upload-${projectId}`}
               disabled={uploadState.status === 'uploading' || uploadState.status === 'processing'}
             />
             <label
-              htmlFor="file-upload"
+              htmlFor={`file-upload-${projectId}`}
               className="cursor-pointer flex flex-col items-center space-y-2"
             >
               <Upload className="h-8 w-8 text-gray-400" />

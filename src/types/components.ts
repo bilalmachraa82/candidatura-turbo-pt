@@ -27,3 +27,11 @@ export interface UploadFormProps {
   acceptedFileTypes?: string;
   onFileUploaded: (file: { name: string; url: string; type: string }) => void;
 }
+
+export interface IndexedFileResult {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  chunks?: number;
+}
