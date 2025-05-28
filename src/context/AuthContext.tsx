@@ -2,14 +2,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  isLoading: boolean; // Alias para loading para compatibilidade
-  isAuthenticated: boolean; // Flag de conveniência
+  isLoading: boolean;
+  isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: any }>;
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: any }>;
   signOut: () => Promise<void>;
@@ -22,7 +21,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     // Get initial session
@@ -63,19 +61,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro de login",
-          description: error.message
-        });
+        console.error('Login error:', error.message);
         return { success: false, error: error };
       }
-      toast({
-        title: "Login bem-sucedido",
-        description: "Bem-vindo de volta!"
-      });
+      console.log('Login successful');
       return { success: true };
     } catch (error) {
+      console.error('Login exception:', error);
       return { success: false, error: error };
     }
   };
@@ -85,19 +77,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro no registo",
-          description: error.message
-        });
+        console.error('Registration error:', error.message);
         return { success: false, error: error };
       }
-      toast({
-        title: "Registo bem-sucedido",
-        description: "Verifique o seu email para confirmar a sua conta."
-      });
+      console.log('Registration successful');
       return { success: true };
     } catch (error) {
+      console.error('Registration exception:', error);
       return { success: false, error: error };
     }
   };
@@ -106,16 +92,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      toast({
-        title: "Logout bem-sucedido",
-        description: "Sessão terminada."
-      });
+      console.log('Logout successful');
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erro no logout",
-        description: error.message
-      });
+      console.error('Logout error:', error);
     }
   };
 
@@ -126,19 +105,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         redirectTo: `${window.location.origin}/reset-password`
       });
       if (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: error.message
-        });
+        console.error('Password reset error:', error.message);
         return { success: false, error: error };
       }
-      toast({
-        title: "Email enviado",
-        description: "Verifique o seu email para redefinir a sua senha."
-      });
+      console.log('Password reset email sent');
       return { success: true };
     } catch (error) {
+      console.error('Password reset exception:', error);
       return { success: false, error: error };
     }
   };
@@ -149,8 +122,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         session,
         loading,
-        isLoading: loading, // Alias para compatibilidade
-        isAuthenticated: !!user, // Flag de conveniência
+        isLoading: loading,
+        isAuthenticated: !!user,
         signIn,
         signUp,
         signOut,
