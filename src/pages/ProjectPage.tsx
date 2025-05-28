@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Layout from '@/components/Layout';
@@ -11,6 +11,10 @@ import DocumentsTab from '@/components/project/DocumentsTab';
 
 const ProjectPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   const {
     project,
@@ -19,13 +23,42 @@ const ProjectPage: React.FC = () => {
     sources,
     charsUsed,
     totalCharLimit,
-    isExporting,
-    setIsExporting,
     isLoading,
     handleFileUploaded,
     handleSectionTextChange,
     handleSourcesUpdate
   } = useProject({ projectId });
+
+  React.useEffect(() => {
+    if (project && !isEditing) {
+      setEditedTitle(project.title || '');
+      setEditedDescription(project.description || '');
+    }
+  }, [project, isEditing]);
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      // Reset values when canceling
+      setEditedTitle(project?.title || '');
+      setEditedDescription(project?.description || '');
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const handleSave = async () => {
+    if (!project || !editedTitle.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      // TODO: Implement project update logic
+      console.log('Saving project:', { title: editedTitle, description: editedDescription });
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving project:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -51,10 +84,15 @@ const ProjectPage: React.FC = () => {
     <Layout>
       <div className="pt-container pt-section">
         <ProjectHeader 
-          projectName={project.name} 
-          projectId={projectId || ''} 
-          isExporting={isExporting}
-          setIsExporting={setIsExporting}
+          project={project}
+          isEditing={isEditing}
+          editedTitle={editedTitle}
+          editedDescription={editedDescription}
+          onEditToggle={handleEditToggle}
+          onTitleChange={setEditedTitle}
+          onDescriptionChange={setEditedDescription}
+          onSave={handleSave}
+          isSaving={isSaving}
         />
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

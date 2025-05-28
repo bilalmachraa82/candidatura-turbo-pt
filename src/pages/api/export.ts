@@ -14,7 +14,15 @@ interface ProjectData {
   title: string;
   description: string;
   created_at: string;
-  sections: Record<string, any>;
+  updated_at: string;
+  user_id: string;
+  budget: number;
+  contact_email: string;
+  contact_phone: string;
+  organization: string;
+  program: string;
+  region: string;
+  status: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -52,17 +60,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Buscar seções do projeto
+    const { data: projectSections, error: sectionsError } = await supabase
+      .from('sections')
+      .select('*')
+      .eq('project_id', projectId);
+
     // Buscar documentos anexados
     const { data: documents, error: docsError } = await supabase
-      .from('project_documents')
+      .from('indexed_files')
       .select('*')
       .eq('project_id', projectId);
 
     // Preparar dados para exportação
     const exportData = {
       project,
+      sections: projectSections || [],
       documents: documents || [],
-      sections: sections || Object.keys(project.sections || {}),
+      selectedSections: sections || [],
       language,
       format
     };
@@ -113,29 +128,27 @@ export async function GET(request: NextRequest) {
 
   try {
     // Verificar se o projeto tem conteúdo suficiente para exportação
-    const { data: project, error } = await supabase
-      .from('projects')
-      .select('sections')
-      .eq('id', projectId)
-      .single();
+    const { data: sections, error } = await supabase
+      .from('sections')
+      .select('content')
+      .eq('project_id', projectId);
 
-    if (error || !project) {
+    if (error) {
       return NextResponse.json(
         { error: 'Projeto não encontrado' },
         { status: 404 }
       );
     }
 
-    const sections = project.sections || {};
-    const completedSections = Object.keys(sections).filter(
-      key => sections[key]?.content && sections[key].content.trim().length > 0
+    const completedSections = (sections || []).filter(
+      section => section.content && section.content.trim().length > 0
     );
 
     return NextResponse.json({
       ready: completedSections.length > 0,
-      completedSections,
-      totalSections: Object.keys(sections).length,
-      completion: Math.round((completedSections.length / Math.max(Object.keys(sections).length, 1)) * 100)
+      completedSections: completedSections.length,
+      totalSections: sections?.length || 0,
+      completion: Math.round((completedSections.length / Math.max(sections?.length || 1, 1)) * 100)
     });
 
   } catch (error) {
