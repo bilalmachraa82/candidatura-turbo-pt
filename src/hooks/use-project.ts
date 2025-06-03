@@ -162,41 +162,18 @@ export function useProject({ projectId }: UseProjectProps) {
     };
     
     setFiles(prev => [...prev, newFile]);
-    await indexFileForRAG(file);
+    setIndexed(true); // Arquivo já foi indexado pela API
+    
+    toast({
+      title: "📄 Arquivo indexado",
+      description: "Documento pronto para uso em geração IA com RAG."
+    });
   };
 
   const indexFileForRAG = async (file: {name: string, url: string, type: string}) => {
-    if (!projectId) return;
-    
-    setIsIndexing(true);
-    
-    try {
-      const fileResponse = await fetch(file.url);
-      const fileBlob = await fileResponse.blob();
-      const fileObject = new File([fileBlob], file.name, { type: file.type });
-      
-      const indexResult = await indexDocument(projectId, fileObject);
-      
-      if (indexResult.success) {
-        setIndexed(true);
-        toast({
-          title: "Indexação concluída",
-          description: "O documento foi indexado com sucesso para RAG."
-        });
-      } else {
-        throw new Error(indexResult.message);
-      }
-      
-    } catch (error: any) {
-      console.error("Error indexing file for RAG:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro na indexação",
-        description: error.message || "Não foi possível indexar o documento."
-      });
-    } finally {
-      setIsIndexing(false);
-    }
+    // Esta função não é mais necessária pois a indexação é feita automaticamente
+    // no upload via StorageUploadForm -> indexDocuments
+    console.log('File already indexed during upload:', file.name);
   };
 
   const handleSectionTextChange = (sectionId: string, newText: string) => {
@@ -212,9 +189,9 @@ export function useProject({ projectId }: UseProjectProps) {
   const handleSourcesUpdate = useCallback((sectionId: string, newSources: any[]) => {
     const convertedSources = newSources.map(source => ({
       id: source.id || '',
-      name: source.name,
-      reference: source.reference,
-      type: source.type
+      name: source.name || source.title || 'Documento',
+      reference: source.reference || source.excerpt || 'Referência do documento',
+      type: source.type || 'document'
     }));
     
     setSources(prevSources => {
@@ -222,6 +199,7 @@ export function useProject({ projectId }: UseProjectProps) {
       const newSourcesString = JSON.stringify(convertedSources);
       
       if (prevSourcesString !== newSourcesString) {
+        console.log('Sources updated:', convertedSources.length, 'sources');
         return convertedSources;
       }
       return prevSources;

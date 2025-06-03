@@ -7,37 +7,59 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate query embedding for semantic search
-async function generateQueryEmbedding(query: string): Promise<number[]> {
+// Generate embeddings using OpenAI
+async function generateEmbedding(text: string): Promise<number[]> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   
   if (!openaiApiKey) {
-    console.warn('OPENAI_API_KEY not found, skipping semantic search');
-    return [];
+    throw new Error('OPENAI_API_KEY não configurada');
   }
 
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      input: text,
+      model: 'text-embedding-3-small',
+      encoding_format: 'float'
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('OpenAI API error:', error);
+    throw new Error(`Erro na API OpenAI: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.data[0].embedding;
+}
+
+// Search for relevant document chunks using vector similarity
+async function searchDocuments(supabase: any, projectId: string, query: string, limit: number = 5) {
   try {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: query,
-        model: 'text-embedding-3-small',
-        encoding_format: 'float'
-      }),
+    // Generate embedding for the query
+    const queryEmbedding = await generateEmbedding(query);
+    
+    // Search for similar document chunks
+    const { data: chunks, error } = await supabase.rpc('match_document_chunks', {
+      query_embedding: `[${queryEmbedding.join(',')}]`,
+      match_threshold: 0.7,
+      match_count: limit,
+      p_project_id: projectId
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+    if (error) {
+      console.error('Error searching documents:', error);
+      return [];
     }
 
-    const data = await response.json();
-    return data.data[0].embedding;
+    return chunks || [];
   } catch (error) {
-    console.error('Error generating query embedding:', error);
+    console.error('Error in document search:', error);
     return [];
   }
 }
@@ -48,9 +70,15 @@ serve(async (req) => {
   }
 
   try {
-    const { projectId, section, charLimit = 1500, model = "google/gemini-2.0-flash-exp" } = await req.json();
+    console.log('Generate OpenRouter function called');
     
-    console.log('OpenRouter generation request:', { projectId, section, charLimit, model });
+    const { projectId, section, charLimit, model } = await req.json();
+
+    if (!projectId || !section) {
+      throw new Error('ProjectId e section são obrigatórios');
+    }
+
+    console.log('Processing request:', { projectId, section, charLimit, model });
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -58,187 +86,130 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Create search query combining section name and context
-    const searchQuery = `${section} candidatura Portugal 2030 projecto inovação`;
+    // Get section information from database
+    const { data: sectionData, error: sectionError } = await supabase
+      .from('sections')
+      .select('title, description')
+      .eq('project_id', projectId)
+      .eq('key', section)
+      .single();
+
+    if (sectionError) {
+      console.error('Error fetching section:', sectionError);
+      throw new Error('Secção não encontrada');
+    }
+
+    // Search for relevant documents
+    const searchQuery = `${sectionData.title} ${sectionData.description || ''}`;
+    const relevantChunks = await searchDocuments(supabase, projectId, searchQuery, 8);
     
-    // Generate embedding for semantic search
-    const queryEmbedding = await generateQueryEmbedding(searchQuery);
+    console.log(`Found ${relevantChunks.length} relevant document chunks`);
+
+    // Prepare context from relevant documents
+    let context = '';
+    const sources = [];
     
-    let chunks: any[] = [];
-    
-    if (queryEmbedding.length > 0) {
-      // Semantic search using embeddings
-      console.log('Performing semantic search with embeddings');
-      
-      const { data: semanticChunks, error: semanticError } = await supabase.rpc('match_document_chunks', {
-        query_embedding: `[${queryEmbedding.join(',')}]`,
-        match_threshold: 0.1,
-        match_count: 8,
-        p_project_id: projectId
+    if (relevantChunks.length > 0) {
+      context = '\n\nDOCUMENTAÇÃO RELEVANTE:\n';
+      relevantChunks.forEach((chunk, index) => {
+        context += `\n[${index + 1}] ${chunk.content}\n`;
+        sources.push({
+          id: chunk.id,
+          name: chunk.metadata?.source || 'Documento',
+          reference: chunk.content.substring(0, 100) + '...',
+          type: 'document',
+          title: chunk.metadata?.source || 'Documento do projeto',
+          excerpt: chunk.content.substring(0, 200) + '...',
+          confidence: chunk.similarity || 0.8
+        });
       });
-
-      if (semanticError) {
-        console.warn('Semantic search failed:', semanticError);
-      } else {
-        chunks = semanticChunks || [];
-      }
-    }
-    
-    // Fallback to keyword search if semantic search fails or no results
-    if (chunks.length === 0) {
-      console.log('Falling back to keyword search');
-      
-      const { data: keywordChunks, error: keywordError } = await supabase
-        .from('document_chunks')
-        .select('id, content, metadata')
-        .eq('project_id', projectId)
-        .textSearch('content', searchQuery.split(' ').join(' | '))
-        .limit(6);
-      
-      if (!keywordError && keywordChunks) {
-        chunks = keywordChunks.map(chunk => ({
-          ...chunk,
-          similarity: 0.5 // Default similarity for keyword search
-        }));
-      }
     }
 
-    // Build context from retrieved chunks
-    const context = chunks && chunks.length > 0 
-      ? chunks
-          .sort((a, b) => (b.similarity || 0) - (a.similarity || 0))
-          .slice(0, 6)
-          .map((chunk: any) => `• ${chunk.content}`)
-          .join('\n')
-      : 'Não foram encontrados documentos relevantes para este projeto.';
+    // Prepare the prompt for text generation
+    const prompt = `
+Você é um especialista em candidaturas ao programa Portugal 2030. Gere conteúdo para a secção "${sectionData.title}" de uma candidatura.
 
-    console.log(`RAG context: ${context.length} characters from ${chunks.length} chunks`);
+DESCRIÇÃO DA SECÇÃO: ${sectionData.description || ''}
 
-    // Enhanced prompt for PT2030 applications
-    const systemPrompt = `És um especialista em candidaturas ao programa PT2030 (Portugal 2030). 
+REQUISITOS:
+- Máximo ${charLimit || 2000} caracteres
+- Linguagem técnica mas acessível
+- Foque nos aspectos mais relevantes para a candidatura
+- Use informação da documentação fornecida quando disponível
+- Seja específico e concreto
 
-TAREFA: Escrever conteúdo técnico para a secção "${section}" de uma candidatura.
-
-REGRAS OBRIGATÓRIAS:
-1. Português de Portugal, formal e técnico
-2. Máximo ${charLimit} caracteres
-3. Usar APENAS as fontes documentais fornecidas
-4. Incluir métricas quantificáveis quando possível
-5. Focar em inovação, impacto económico e sustentabilidade
-6. Estrutura clara com parágrafos bem definidos
-7. Se excederes o limite, corta elegantemente com "..."
-
-CRITÉRIOS PT2030:
-- Demonstrar inovação tecnológica e metodológica
-- Evidenciar viabilidade económica e técnica
-- Mostrar impacto territorial e social
-- Comprovar sustentabilidade ambiental
-- Indicar parcerias estratégicas
-
-==== CONTEXTO DOCUMENTAL ====
 ${context}
-====
 
-Gera conteúdo profissional e convincente para a secção "${section}".`;
-
-    const messages = [
-      { role: "system", content: systemPrompt },
-      { 
-        role: "user", 
-        content: `Redige agora o conteúdo para "${section}" baseado nos documentos fornecidos. Máximo ${charLimit} caracteres.` 
-      }
-    ];
+Gere o conteúdo para a secção "${sectionData.title}":`;
 
     // Call OpenRouter API
-    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const openrouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
+    
+    if (!openrouterApiKey) {
+      throw new Error('OPENROUTER_API_KEY não configurada');
+    }
+
+    const openrouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
+        'Authorization': `Bearer ${openrouterApiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://pt2030-candidaturas.lovable.app',
-        'X-Title': 'PT2030 Candidaturas App'
+        'HTTP-Referer': 'https://candidaturas-pt2030.lovable.app',
+        'X-Title': 'Candidaturas PT2030'
       },
       body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: Math.min(2000, Math.floor(charLimit / 2)),
-        temperature: 0.2,
-        top_p: 0.9,
-        frequency_penalty: 0.1,
-        presence_penalty: 0.05
+        model: model || 'google/gemini-2.0-flash-exp',
+        messages: [
+          {
+            role: 'system',
+            content: 'Você é um especialista em candidaturas ao programa Portugal 2030. Gere conteúdo profissional e técnico para candidaturas.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: Math.min(Math.floor(charLimit * 1.2), 4000)
       })
     });
 
-    if (!openRouterResponse.ok) {
-      const errorText = await openRouterResponse.text();
+    if (!openrouterResponse.ok) {
+      const errorText = await openrouterResponse.text();
       console.error('OpenRouter API error:', errorText);
-      throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
+      throw new Error(`Erro na API OpenRouter: ${openrouterResponse.status}`);
     }
 
-    const openRouterResult = await openRouterResponse.json();
-    console.log('OpenRouter response received');
+    const openrouterData = await openrouterResponse.json();
+    const generatedText = openrouterData.choices[0].message.content;
 
-    let generatedText = openRouterResult.choices?.[0]?.message?.content?.trim() || '';
-    
-    // Trim to character limit with smart truncation
-    if (generatedText.length > charLimit) {
-      const truncated = generatedText.slice(0, charLimit - 3);
-      const lastSentence = truncated.lastIndexOf('.');
-      const lastParagraph = truncated.lastIndexOf('\n');
-      
-      const cutPoint = Math.max(lastSentence, lastParagraph);
-      if (cutPoint > charLimit * 0.8) {
-        generatedText = truncated.slice(0, cutPoint + 1) + '...';
-      } else {
-        generatedText = truncated + '...';
-      }
-    }
-
-    // Map chunks to sources for UI
-    const sources = chunks?.slice(0, 5).map((chunk: any, index: number) => ({
-      id: chunk.id || `source-${index}`,
-      name: chunk.metadata?.source || `Documento ${index + 1}`,
-      type: 'document',
-      reference: chunk.metadata?.page ? `Página ${chunk.metadata.page}` : 'Documento de referência',
-      similarity: chunk.similarity || 0
-    })) || [];
-
-    // Log generation for analytics
-    try {
-      await supabase.from('generations').insert({
-        project_id: projectId,
-        section_key: section,
-        model: `openrouter:${model}`
-      });
-    } catch (dbError) {
-      console.warn('Error logging generation:', dbError);
-    }
-
-    const result = {
-      text: generatedText,
-      charsUsed: generatedText.length,
-      sources,
-      provider: 'openrouter',
-      model,
-      chunksUsed: chunks.length,
-      searchMethod: queryEmbedding.length > 0 ? 'semantic' : 'keyword'
-    };
-
-    console.log('Generation completed:', { 
-      charsUsed: result.charsUsed, 
-      sourcesCount: sources.length,
-      searchMethod: result.searchMethod
+    // Log generation for tracking
+    await supabase.from('generations').insert({
+      project_id: projectId,
+      section_key: section,
+      model: model || 'google/gemini-2.0-flash-exp'
     });
 
-    return new Response(JSON.stringify(result), {
+    console.log('Text generation completed successfully');
+
+    return new Response(JSON.stringify({
+      success: true,
+      text: generatedText,
+      charsUsed: generatedText.length,
+      sources: sources,
+      chunksUsed: relevantChunks.length,
+      searchMethod: relevantChunks.length > 0 ? 'vector' : 'none'
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
-    console.error('Error in OpenRouter generation:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Erro desconhecido na geração OpenRouter',
-      provider: 'openrouter'
+    console.error('Error in generate-openrouter function:', error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Erro desconhecido na geração',
+      details: error.stack
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

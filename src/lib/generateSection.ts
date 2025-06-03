@@ -1,6 +1,6 @@
 
 import { supabase } from '@/lib/supabase';
-import { HybridGenerationOptions, GenerationResult } from '@/types/ai';
+import { GenerationResult } from '@/types/ai';
 
 export async function generateSection(
   projectId: string, 
@@ -30,6 +30,10 @@ export async function generateSection(
         throw new Error(`OpenRouter error: ${error.message}`);
       }
 
+      if (!data.success) {
+        throw new Error(data.error || 'Erro na geração OpenRouter');
+      }
+
       result = {
         text: data.text,
         charsUsed: data.charsUsed,
@@ -57,6 +61,10 @@ export async function generateSection(
       if (error) {
         console.error('Flowise edge function error:', error);
         throw new Error(`Flowise error: ${error.message}`);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro na geração Flowise');
       }
 
       result = {
@@ -94,7 +102,7 @@ export async function generateSection(
   }
 }
 
-// Helper function to test API connections
+// Helper function to test AI connections
 export async function testAIConnections(): Promise<{
   openrouter: boolean;
   openai: boolean;
@@ -105,6 +113,21 @@ export async function testAIConnections(): Promise<{
     openai: false,
     flowise: false
   };
+
+  try {
+    // Test OpenRouter connection
+    const { data: openrouterTest } = await supabase.functions.invoke('generate-openrouter', {
+      body: { 
+        projectId: 'test', 
+        section: 'test', 
+        charLimit: 100,
+        model: 'google/gemini-2.0-flash-exp'
+      }
+    });
+    results.openrouter = !!openrouterTest;
+  } catch (error) {
+    console.warn('OpenRouter test failed:', error);
+  }
 
   try {
     // Test OpenAI setup (for embeddings)

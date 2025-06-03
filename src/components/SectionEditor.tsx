@@ -114,8 +114,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       }
       
       toast({
-        title: "Texto gerado",
-        description: `Gerado com ${result.provider} (${selectedModel.id})`
+        title: "✨ Texto gerado com sucesso!",
+        description: `Gerado com ${result.provider} (${selectedModel.id}) • ${result.sources?.length || 0} fontes utilizadas`
       });
       
       // Salvar automaticamente o texto gerado
