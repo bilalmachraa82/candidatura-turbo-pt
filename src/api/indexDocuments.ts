@@ -105,7 +105,6 @@ export async function indexDocument(
         name: file.name,
         type: file.type,
         url: uploadResult.file.url,
-        path: uploadResult.file.path,
         chunks: indexData.chunks || 0
       }
     };
