@@ -31,7 +31,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   const {
     text,
     setText,
-    isSaving,
+    saveStatus,
+    hasUnsavedChanges,
     isGenerating,
     selectedModel,
     setSelectedModel,
@@ -70,6 +71,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
             onModelChange={setSelectedModel}
             isGenerating={isGenerating}
             onGenerateClick={handleGenerateText}
+            saveStatus={saveStatus}
+            hasUnsavedChanges={hasUnsavedChanges}
           />
         </CardHeader>
         
@@ -78,9 +81,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
             text={text}
             onTextChange={handleTextChange}
             charLimit={charLimit}
-            isSaving={isSaving}
             onSave={handleSave}
             placeholder={`Escreva o conteúdo para ${title} aqui...`}
+            saveStatus={saveStatus}
+            hasUnsavedChanges={hasUnsavedChanges}
           />
         </CardContent>
       </Card>

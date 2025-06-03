@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useAutoSave } from '@/hooks/use-auto-save';
 import { supabase } from '@/lib/supabase';
 import { generateSection } from '@/lib/generateSection';
 import { GenerationSource, adaptLegacySource } from '@/types/api';
@@ -24,7 +25,6 @@ export const useSectionEditor = ({
   onSourcesUpdate
 }: UseSectionEditorProps) => {
   const [text, setText] = useState(initialText);
-  const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   
   // Usar modelo recomendado baseado na secção
@@ -34,11 +34,40 @@ export const useSectionEditor = ({
   
   const { toast } = useToast();
 
+  // Função para guardar na base de dados
+  const saveToDatabase = async (content: string) => {
+    const { error } = await supabase
+      .from('sections')
+      .update({ 
+        content, 
+        updated_at: new Date().toISOString()
+      })
+      .eq('project_id', projectId)
+      .eq('key', sectionKey);
+    
+    if (error) throw error;
+  };
+
+  // Hook de auto-save
+  const { saveStatus, hasUnsavedChanges, manualSave } = useAutoSave({
+    data: text,
+    onSave: saveToDatabase,
+    delay: 3000, // 3 segundos de delay
+    enabled: true
+  });
+
   // Atualizar modelo recomendado quando a secção muda
   useEffect(() => {
     const recommendedModel = getSectionRecommendedModel(sectionKey);
     setSelectedModel(recommendedModel);
   }, [sectionKey]);
+
+  // Sincronizar texto inicial
+  useEffect(() => {
+    if (initialText !== text) {
+      setText(initialText);
+    }
+  }, [initialText]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
@@ -48,20 +77,7 @@ export const useSectionEditor = ({
 
   const handleSave = async () => {
     try {
-      setIsSaving(true);
-      
-      // Actualizar o conteúdo da secção no Supabase
-      const { error } = await supabase
-        .from('sections')
-        .update({ 
-          content: text, 
-          updated_at: new Date().toISOString()
-        })
-        .eq('project_id', projectId)
-        .eq('key', sectionKey);
-      
-      if (error) throw error;
-      
+      await manualSave();
       toast({
         title: "Secção guardada",
         description: "O conteúdo foi guardado com sucesso."
@@ -73,8 +89,6 @@ export const useSectionEditor = ({
         title: "Erro ao guardar",
         description: error.message || "Não foi possível guardar o conteúdo."
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -111,9 +125,6 @@ export const useSectionEditor = ({
         description: `Gerado com ${result.provider} usando ${selectedModel.id.split('/').pop()}`
       });
       
-      // Guardar automaticamente o texto gerado
-      await handleSave();
-      
     } catch (error: any) {
       console.error('Erro ao gerar texto:', error);
       toast({
@@ -129,7 +140,8 @@ export const useSectionEditor = ({
   return {
     text,
     setText,
-    isSaving,
+    saveStatus,
+    hasUnsavedChanges,
     isGenerating,
     selectedModel,
     setSelectedModel,
