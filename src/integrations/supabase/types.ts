@@ -100,6 +100,8 @@ export type Database = {
           id: string
           project_id: string
           status: string | null
+          storage_bucket: string | null
+          storage_path: string | null
           updated_at: string | null
         }
         Insert: {
@@ -112,6 +114,8 @@ export type Database = {
           id?: string
           project_id: string
           status?: string | null
+          storage_bucket?: string | null
+          storage_path?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -124,6 +128,8 @@ export type Database = {
           id?: string
           project_id?: string
           status?: string | null
+          storage_bucket?: string | null
+          storage_path?: string | null
           updated_at?: string | null
         }
         Relationships: [

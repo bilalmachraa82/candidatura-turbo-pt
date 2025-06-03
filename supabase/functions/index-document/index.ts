@@ -49,7 +49,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
     },
     body: JSON.stringify({
       input: text,
-      model: 'text-embedding-3-small', // Cost-effective and good quality
+      model: 'text-embedding-3-small',
       encoding_format: 'float'
     }),
   });
@@ -100,6 +100,7 @@ serve(async (req) => {
     const formData = await req.formData();
     const projectId = formData.get('projectId') as string;
     const file = formData.get('file') as File;
+    const fileRecordId = formData.get('fileRecordId') as string;
 
     if (!projectId || !file) {
       throw new Error('ProjectId e file são obrigatórios');
@@ -117,27 +118,6 @@ serve(async (req) => {
     const fullText = await extractText(file);
     console.log('Extracted text length:', fullText.length);
 
-    // Create file record
-    const { data: fileRecord, error: fileError } = await supabase
-      .from('indexed_files')
-      .insert({
-        project_id: projectId,
-        file_name: file.name,
-        file_type: file.type,
-        file_url: `storage/${projectId}/${file.name}`,
-        file_size: file.size,
-        status: 'processing'
-      })
-      .select()
-      .single();
-
-    if (fileError) {
-      console.error('Error creating file record:', fileError);
-      throw fileError;
-    }
-
-    console.log('File record created:', fileRecord.id);
-
     // Chunk the text
     const chunks = chunkText(fullText, 1000, 200);
     console.log('Created', chunks.length, 'chunks');
@@ -149,16 +129,16 @@ serve(async (req) => {
         
         return {
           project_id: projectId,
-          file_id: fileRecord.id,
+          file_id: fileRecordId || `temp-${Date.now()}`,
           chunk_index: index,
           content: chunk,
           metadata: {
             source: file.name,
-            page: Math.floor(index / 5) + 1, // Approximate page numbering
+            page: Math.floor(index / 5) + 1,
             chunk_size: chunk.length,
             file_type: file.type
           },
-          embedding: `[${embedding.join(',')}]` // PostgreSQL array format
+          embedding: `[${embedding.join(',')}]`
         };
       } catch (error) {
         console.error(`Error processing chunk ${index}:`, error);
@@ -180,22 +160,16 @@ serve(async (req) => {
       throw chunksError;
     }
 
-    // Update file status
-    await supabase
-      .from('indexed_files')
-      .update({ status: 'indexed' })
-      .eq('id', fileRecord.id);
-
     console.log('Document indexing completed successfully');
 
     return new Response(JSON.stringify({
       success: true,
       message: `Documento indexado com sucesso! ${chunks.length} segmentos processados.`,
+      chunks: chunks.length,
       file: {
-        id: fileRecord.id,
+        id: fileRecordId,
         name: file.name,
         type: file.type,
-        url: fileRecord.file_url,
         chunks: chunks.length
       }
     }), {

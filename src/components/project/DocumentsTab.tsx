@@ -2,8 +2,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Eye, Brain } from 'lucide-react';
-import EnhancedUploadForm from '@/components/enhanced/EnhancedUploadForm';
+import { FileText, Eye, Brain, Cloud, Shield } from 'lucide-react';
+import StorageUploadForm from '@/components/enhanced/StorageUploadForm';
 import { UploadedFile } from '@/types/components';
 
 interface DocumentsTabProps {
@@ -24,54 +24,56 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
     return '📎';
   };
 
-  const formatFileSize = (size: number) => {
-    if (size === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(size) / Math.log(k));
-    return parseFloat((size / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   return (
     <div className="space-y-8">
       <div className="bg-gradient-to-r from-pt-green to-pt-blue text-white p-6 rounded-lg">
         <h2 className="text-2xl font-bold mb-2">Documentos do Projeto</h2>
-        <p className="text-green-100">
+        <p className="text-green-100 mb-3">
           Carregue os seus documentos para alimentar a IA com contexto específico do projeto
         </p>
-        <div className="flex items-center gap-2 mt-3">
-          <Brain className="h-4 w-4" />
-          <span className="text-sm">Powered by Vector RAG & pgvector</span>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-1">
+            <Brain className="h-4 w-4" />
+            <span>Vector RAG & pgvector</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Cloud className="h-4 w-4" />
+            <span>Supabase Storage</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Shield className="h-4 w-4" />
+            <span>Storage Seguro</span>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <EnhancedUploadForm 
+          <StorageUploadForm 
             title="Memória Descritiva"
             description="Documento principal com a descrição detalhada do projeto"
             projectId={projectId || ''}
             onFileUploaded={onFileUploaded}
           />
           
-          <EnhancedUploadForm 
+          <StorageUploadForm 
             title="Estudo de Viabilidade Económico-Financeira (EVEF)"
             description="Análise financeira e económica em formato Excel"
             projectId={projectId || ''}
-            acceptedFileTypes="application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            acceptedFileTypes=".xls,.xlsx"
             onFileUploaded={onFileUploaded}
           />
         </div>
 
         <div className="space-y-6">
-          <EnhancedUploadForm 
+          <StorageUploadForm 
             title="Dossiê de Estratégia"
             description="Documentação estratégica e planos complementares"
             projectId={projectId || ''}
             onFileUploaded={onFileUploaded}
           />
           
-          <EnhancedUploadForm 
+          <StorageUploadForm 
             title="Documentos Anexos"
             description="Certificações, autorizações e documentos de apoio"
             projectId={projectId || ''}
@@ -87,10 +89,16 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
               <FileText className="h-5 w-5" />
               Ficheiros Indexados ({files.length})
             </h3>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              <Brain className="h-3 w-3 mr-1" />
-              RAG Ativo
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                <Brain className="h-3 w-3 mr-1" />
+                RAG Ativo
+              </Badge>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                <Cloud className="h-3 w-3 mr-1" />
+                Storage Seguro
+              </Badge>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -106,12 +114,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <Badge variant="outline" className="text-xs">
+                          <Brain className="h-3 w-3 mr-1" />
                           Indexado
                         </Badge>
-                        <span className="text-xs text-gray-400">•</span>
-                        <span className="text-xs text-gray-500">
-                          Disponível para IA
-                        </span>
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                          <Cloud className="h-3 w-3 mr-1" />
+                          Storage
+                        </Badge>
                       </div>
                     </div>
                   </div>
@@ -129,16 +138,20 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
             ))}
           </div>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-start gap-3">
-              <Brain className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="flex items-center gap-2 text-blue-600">
+                <Brain className="h-5 w-5" />
+                <Cloud className="h-5 w-5" />
+              </div>
               <div className="text-sm text-blue-800">
-                <p className="font-medium mb-2">Sistema RAG Ativo</p>
+                <p className="font-medium mb-2">Sistema RAG + Storage Seguro Ativo</p>
                 <ul className="space-y-1 text-xs">
-                  <li>• Documentos processados e indexados com embeddings</li>
+                  <li>• Documentos armazenados de forma segura no Supabase Storage</li>
+                  <li>• Processamento automático e indexação com embeddings</li>
                   <li>• Busca semântica ativa para geração de conteúdo contextual</li>
                   <li>• Referências automáticas às fontes nos textos gerados</li>
-                  <li>• Atualização em tempo real conforme carrega novos documentos</li>
+                  <li>• Controlo de acesso baseado em autenticação</li>
                 </ul>
               </div>
             </div>
