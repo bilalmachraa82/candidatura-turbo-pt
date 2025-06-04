@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, FileText } from 'lucide-react';
@@ -7,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
 import NewProjectDialog from '@/components/NewProjectDialog';
+import ProjectCardActions from '@/components/ProjectCardActions';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -91,6 +91,10 @@ const DashboardPage: React.FC = () => {
     setProjects((prev) => [newProject, ...prev]);
   };
 
+  const handleProjectDeleted = (projectId: string) => {
+    setProjects((prev) => prev.filter(project => project.id !== projectId));
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'draft':
@@ -157,8 +161,14 @@ const DashboardPage: React.FC = () => {
               <Card key={project.id} className="transition-shadow hover:shadow-md">
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-xl text-pt-blue">{project.title}</CardTitle>
-                    {getStatusBadge(project.status)}
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-xl text-pt-blue truncate">{project.title}</CardTitle>
+                      {getStatusBadge(project.status)}
+                    </div>
+                    <ProjectCardActions
+                      project={project}
+                      onProjectDeleted={handleProjectDeleted}
+                    />
                   </div>
                   <CardDescription className="line-clamp-2">
                     {project.description || 'Sem descrição'}
