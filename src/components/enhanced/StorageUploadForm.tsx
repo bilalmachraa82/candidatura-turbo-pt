@@ -13,8 +13,9 @@ interface StorageUploadFormProps {
   title: string;
   description: string;
   projectId: string;
+  category?: string;
   acceptedFileTypes?: string;
-  onFileUploaded?: (file: { name: string; url: string; type: string; chunks?: number }) => void;
+  onFileUploaded?: (file: { name: string; url: string; type: string; chunks?: number; category?: string }) => void;
 }
 
 interface UploadState {
@@ -38,6 +39,7 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
   title,
   description,
   projectId,
+  category = 'general',
   acceptedFileTypes = ".pdf,.doc,.docx,.xls,.xlsx,.txt",
   onFileUploaded
 }) => {
@@ -102,8 +104,8 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
         }));
       }, 1000);
 
-      // Call indexing API
-      const result = await indexDocument(projectId, uploadState.file);
+      // Call indexing API with category
+      const result = await indexDocument(projectId, uploadState.file, category);
       
       clearInterval(progressInterval);
 
@@ -112,13 +114,13 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
           ...prev,
           status: 'completed',
           progress: 100,
-          message: `✅ Documento indexado! ${result.file?.chunks || 0} segmentos criados para RAG.`,
+          message: `✅ Documento indexado em "${title}"! ${result.file?.chunks || 0} segmentos criados para RAG.`,
           result
         }));
 
         toast({
           title: "🎉 Upload concluído!",
-          description: result.message || "Documento processado e pronto para geração IA."
+          description: `Documento carregado em "${title}" e processado com sucesso!`
         });
 
         if (onFileUploaded && result.file) {
@@ -126,7 +128,8 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
             name: result.file.name,
             url: result.file.url,
             type: result.file.type,
-            chunks: result.file.chunks
+            chunks: result.file.chunks,
+            category: category
           });
         }
       } else {
@@ -145,7 +148,7 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
 
       toast({
         variant: "destructive",
-        title: "Erro no upload",
+        title: "Erro no carregamento",
         description: error.message || "Não foi possível processar o documento."
       });
     }
@@ -212,7 +215,7 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
           {title}
         </CardTitle>
         <CardDescription>
-          {description} • Storage seguro com Supabase
+          {description} • Storage seguro organizado por categoria
         </CardDescription>
       </CardHeader>
       
@@ -225,11 +228,11 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
               accept={acceptedFileTypes}
               onChange={handleFileSelect}
               className="hidden"
-              id={`file-upload-${projectId}`}
+              id={`file-upload-${category}-${projectId}`}
               disabled={uploadState.status === 'uploading' || uploadState.status === 'processing'}
             />
             <label
-              htmlFor={`file-upload-${projectId}`}
+              htmlFor={`file-upload-${category}-${projectId}`}
               className="cursor-pointer flex flex-col items-center space-y-2"
             >
               <div className="text-4xl">☁️</div>
@@ -240,7 +243,7 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
                 {' '}ou arraste ficheiros aqui
               </div>
               <div className="text-xs text-gray-500">
-                Storage seguro • PDF, Word, Excel, TXT (máx. 50MB)
+                {title} • Storage seguro • PDF, Word, Excel, TXT (máx. 50MB)
               </div>
             </label>
           </div>
@@ -253,7 +256,7 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
                 <div>
                   <div className="font-medium text-sm">{uploadState.file.name}</div>
                   <div className="text-xs text-gray-500">
-                    {(uploadState.file.size / 1024 / 1024).toFixed(2)} MB
+                    {(uploadState.file.size / 1024 / 1024).toFixed(2)} MB • Categoria: {title}
                   </div>
                 </div>
               </div>
@@ -301,9 +304,10 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
             <h4 className="font-medium text-green-800 mb-2">🎉 Indexação Concluída</h4>
             <div className="space-y-1 text-sm text-green-700">
               <div>📄 Nome: {uploadState.result.file?.name}</div>
+              <div>📂 Categoria: {title}</div>
               <div>🔍 Segmentos RAG: {uploadState.result.file?.chunks || 0}</div>
-              <div>☁️ Storage: Supabase (seguro)</div>
-              <div>✅ Status: Pronto para geração IA</div>
+              <div>☁️ Storage: Supabase (seguro e organizado)</div>
+              <div>✅ Status: Pronto para geração IA contextual</div>
             </div>
           </div>
         )}
@@ -323,7 +327,7 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
             ) : (
               <>
                 <Cloud className="mr-2 h-4 w-4" />
-                Carregar para Storage
+                Carregar para {title}
               </>
             )}
           </Button>
@@ -339,12 +343,13 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
         <div className="text-xs text-gray-500 space-y-1 bg-blue-50 p-3 rounded-lg border border-blue-200">
           <div className="flex items-center gap-2 text-blue-700 font-medium">
             <Cloud className="h-4 w-4" />
-            Storage Seguro Configurado
+            Storage Seguro e Organizado
           </div>
           <ul className="space-y-1 text-blue-600 ml-6">
-            <li>• Ficheiros armazenados de forma privada</li>
+            <li>• Ficheiros organizados automaticamente por categoria</li>
+            <li>• Armazenamento privado e seguro</li>
             <li>• Acesso controlado por autenticação</li>
-            <li>• Indexação automática para RAG</li>
+            <li>• Indexação automática para busca contextual</li>
             <li>• Políticas de segurança ativas</li>
           </ul>
         </div>

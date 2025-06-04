@@ -5,10 +5,11 @@ import { IndexingResult } from '@/types/api';
 
 export async function indexDocument(
   projectId: string,
-  file: File
+  file: File,
+  category: string = 'general'
 ): Promise<IndexingResult> {
   try {
-    console.log('Starting document indexing for project:', projectId);
+    console.log('Iniciando indexação de documento para o projeto:', projectId, 'categoria:', category);
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -16,16 +17,16 @@ export async function indexDocument(
       throw new Error('Utilizador não autenticado');
     }
 
-    // First upload file to storage
-    const uploadResult = await uploadFileToStorage(projectId, file, user.id);
+    // First upload file to storage with category
+    const uploadResult = await uploadFileToStorage(projectId, file, user.id, category);
     
     if (!uploadResult.success || !uploadResult.file) {
-      throw new Error(uploadResult.error || 'Erro no upload do ficheiro');
+      throw new Error(uploadResult.error || 'Erro no carregamento do ficheiro');
     }
 
-    console.log('File uploaded to storage:', uploadResult.file);
+    console.log('Ficheiro carregado para o storage:', uploadResult.file);
 
-    // Create file record in database
+    // Create file record in database with category
     const { data: fileRecord, error: fileError } = await supabase
       .from('indexed_files')
       .insert({
@@ -36,30 +37,32 @@ export async function indexDocument(
         file_size: file.size,
         storage_path: uploadResult.file.path,
         storage_bucket: 'project-documents',
+        category: category,
         status: 'processing'
       })
       .select()
       .single();
 
     if (fileError) {
-      console.error('Error creating file record:', fileError);
-      throw new Error('Erro ao criar registo do ficheiro');
+      console.error('Erro ao criar registo do ficheiro:', fileError);
+      throw new Error('Erro ao criar registo do ficheiro na base de dados');
     }
 
-    console.log('File record created:', fileRecord);
+    console.log('Registo do ficheiro criado:', fileRecord);
 
     // Call the Supabase Edge Function for indexing
     const formData = new FormData();
     formData.append('projectId', projectId);
     formData.append('file', file);
     formData.append('fileRecordId', fileRecord.id);
+    formData.append('category', category);
 
     const { data: indexData, error: indexError } = await supabase.functions.invoke('index-document', {
       body: formData
     });
 
     if (indexError) {
-      console.error('Edge function error:', indexError);
+      console.error('Erro na Edge Function:', indexError);
       
       // Update file status to error
       await supabase
@@ -70,7 +73,7 @@ export async function indexDocument(
         })
         .eq('id', fileRecord.id);
         
-      throw new Error(indexError.message || 'Erro na indexação');
+      throw new Error(indexError.message || 'Erro na indexação do documento');
     }
 
     if (!indexData?.success) {
@@ -94,26 +97,27 @@ export async function indexDocument(
       .update({ status: 'indexed' })
       .eq('id', fileRecord.id);
 
-    console.log('Document indexing completed successfully');
+    console.log('Indexação do documento concluída com sucesso');
 
     return {
       success: true,
       documentId: fileRecord.id,
-      message: indexData.message || `Documento indexado com sucesso! ${indexData.chunks || 0} segmentos processados.`,
+      message: indexData.message || `Documento indexado em "${category}" com sucesso! ${indexData.chunks || 0} segmentos processados.`,
       file: {
         id: fileRecord.id,
         name: file.name,
         type: file.type,
         url: uploadResult.file.url,
-        chunks: indexData.chunks || 0
+        chunks: indexData.chunks || 0,
+        category: category
       }
     };
 
   } catch (error: any) {
-    console.error('Error indexing document:', error);
+    console.error('Erro na indexação do documento:', error);
     return {
       success: false,
-      message: error.message || 'Error indexing document',
+      message: error.message || 'Erro na indexação do documento',
     };
   }
 }

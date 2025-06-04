@@ -1,4 +1,3 @@
-
 import { Source } from './ai';
 import { GenerationSource } from './api';
 
@@ -8,6 +7,7 @@ export interface UploadedFile {
   url: string;
   type: string;
   uploadDate: string;
+  category?: string;
 }
 
 export interface ProjectSection {

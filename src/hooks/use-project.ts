@@ -1,8 +1,8 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UploadedFile, ProjectSection } from '@/types/components';
-import { indexDocument } from '@/api/indexDocuments';
 import { GenerationSource } from '@/types/api';
 import { PT2030_SECTIONS } from '@/data/pt2030_sections';
 
@@ -133,15 +133,16 @@ export function useProject({ projectId }: UseProjectProps) {
             name: f.file_name,
             url: f.file_url,
             type: f.file_type,
-            uploadDate: f.created_at
+            uploadDate: f.created_at,
+            category: f.category || 'general'
           })));
         }
       } catch (error) {
-        console.warn("Could not load indexed files, table might be empty:", error);
+        console.warn("Não foi possível carregar ficheiros indexados:", error);
       }
 
     } catch (error) {
-      console.error("Error fetching project:", error);
+      console.error("Erro ao carregar projeto:", error);
       toast({
         variant: "destructive",
         title: "Erro",
@@ -152,28 +153,23 @@ export function useProject({ projectId }: UseProjectProps) {
     }
   };
 
-  const handleFileUploaded = async (file: {name: string, url: string, type: string}) => {
+  const handleFileUploaded = async (file: {name: string, url: string, type: string, category?: string}) => {
     const newFile: UploadedFile = {
       id: Date.now().toString(),
       name: file.name,
       url: file.url,
       type: file.type,
-      uploadDate: new Date().toISOString()
+      uploadDate: new Date().toISOString(),
+      category: file.category || 'general'
     };
     
     setFiles(prev => [...prev, newFile]);
     setIndexed(true); // Arquivo já foi indexado pela API
     
     toast({
-      title: "📄 Arquivo indexado",
-      description: "Documento pronto para uso em geração IA com RAG."
+      title: "📄 Ficheiro indexado",
+      description: `Documento carregado na categoria "${file.category}" e pronto para uso em geração IA com RAG.`
     });
-  };
-
-  const indexFileForRAG = async (file: {name: string, url: string, type: string}) => {
-    // Esta função não é mais necessária pois a indexação é feita automaticamente
-    // no upload via StorageUploadForm -> indexDocuments
-    console.log('File already indexed during upload:', file.name);
   };
 
   const handleSectionTextChange = (sectionId: string, newText: string) => {
@@ -199,7 +195,7 @@ export function useProject({ projectId }: UseProjectProps) {
       const newSourcesString = JSON.stringify(convertedSources);
       
       if (prevSourcesString !== newSourcesString) {
-        console.log('Sources updated:', convertedSources.length, 'sources');
+        console.log('Fontes atualizadas:', convertedSources.length, 'fontes');
         return convertedSources;
       }
       return prevSources;

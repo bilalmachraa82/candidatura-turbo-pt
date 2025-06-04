@@ -16,17 +16,18 @@ export interface UploadResult {
 export async function uploadFileToStorage(
   projectId: string,
   file: File,
-  userId: string
+  userId: string,
+  category: string = 'general'
 ): Promise<UploadResult> {
   try {
-    // Create unique file path: userId/projectId/filename_timestamp
+    // Create unique file path: userId/projectId/category/filename_timestamp
     const timestamp = Date.now();
     const fileExtension = file.name.split('.').pop();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `${sanitizedFileName.split('.')[0]}_${timestamp}.${fileExtension}`;
-    const filePath = `${userId}/${projectId}/${fileName}`;
+    const filePath = `${userId}/${projectId}/${category}/${fileName}`;
 
-    console.log('Uploading file to path:', filePath);
+    console.log('A carregar ficheiro para o caminho:', filePath);
 
     // Upload file to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -37,11 +38,11 @@ export async function uploadFileToStorage(
       });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      throw new Error(`Erro no upload: ${uploadError.message}`);
+      console.error('Erro no carregamento para o storage:', uploadError);
+      throw new Error(`Erro no carregamento: ${uploadError.message}`);
     }
 
-    console.log('File uploaded successfully:', uploadData);
+    console.log('Ficheiro carregado com sucesso:', uploadData);
 
     // Get public URL (even though bucket is private, we need the URL for internal use)
     const { data: urlData } = supabase.storage
@@ -62,10 +63,10 @@ export async function uploadFileToStorage(
     };
 
   } catch (error: any) {
-    console.error('Upload error:', error);
+    console.error('Erro no carregamento:', error);
     return {
       success: false,
-      error: error.message || 'Erro desconhecido no upload'
+      error: error.message || 'Erro desconhecido no carregamento'
     };
   }
 }
@@ -77,13 +78,13 @@ export async function deleteFileFromStorage(filePath: string): Promise<boolean> 
       .remove([filePath]);
 
     if (error) {
-      console.error('Delete error:', error);
+      console.error('Erro ao eliminar:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Delete file error:', error);
+    console.error('Erro ao eliminar ficheiro:', error);
     return false;
   }
 }
