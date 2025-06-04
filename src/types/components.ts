@@ -1,3 +1,4 @@
+
 import { Source } from './ai';
 import { GenerationSource } from './api';
 
@@ -25,7 +26,7 @@ export interface UploadFormProps {
   description: string;
   projectId: string;
   acceptedFileTypes?: string;
-  onFileUploaded: (file: { name: string; url: string; type: string }) => void;
+  onFileUploaded: (file: { name: string; url: string; type: string; category?: string }) => void;
 }
 
 export interface IndexedFileResult {
@@ -34,4 +35,5 @@ export interface IndexedFileResult {
   type: string;
   url: string;
   chunks?: number;
+  category?: string;
 }
