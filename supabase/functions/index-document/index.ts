@@ -33,19 +33,21 @@ function chunkText(text: string, maxChunkSize: number = 1000, overlap: number = 
   return chunks.filter(chunk => chunk.length > 50); // Filter out very short chunks
 }
 
-// Generate embeddings using OpenAI
+// Generate embeddings using OpenRouter instead of OpenAI directly
 async function generateEmbedding(text: string): Promise<number[]> {
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  const openrouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
   
-  if (!openaiApiKey) {
-    throw new Error('OPENAI_API_KEY não configurada');
+  if (!openrouterApiKey) {
+    throw new Error('OPENROUTER_API_KEY não configurada');
   }
 
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
+  const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${openaiApiKey}`,
+      'Authorization': `Bearer ${openrouterApiKey}`,
       'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://candidaturas-pt2030.lovable.app',
+      'X-Title': 'Candidaturas PT2030'
     },
     body: JSON.stringify({
       input: text,
@@ -56,8 +58,8 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('OpenAI API error:', error);
-    throw new Error(`Erro na API OpenAI: ${response.status}`);
+    console.error('OpenRouter API error:', error);
+    throw new Error(`Erro na API OpenRouter: ${response.status}`);
   }
 
   const data = await response.json();
@@ -101,12 +103,13 @@ serve(async (req) => {
     const projectId = formData.get('projectId') as string;
     const file = formData.get('file') as File;
     const fileRecordId = formData.get('fileRecordId') as string;
+    const category = formData.get('category') as string || 'general';
 
     if (!projectId || !file) {
       throw new Error('ProjectId e file são obrigatórios');
     }
 
-    console.log('Processing file:', file.name, 'for project:', projectId);
+    console.log('Processing file:', file.name, 'for project:', projectId, 'category:', category);
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -136,7 +139,8 @@ serve(async (req) => {
             source: file.name,
             page: Math.floor(index / 5) + 1,
             chunk_size: chunk.length,
-            file_type: file.type
+            file_type: file.type,
+            category: category
           },
           embedding: `[${embedding.join(',')}]`
         };
@@ -164,13 +168,14 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Documento indexado com sucesso! ${chunks.length} segmentos processados.`,
+      message: `Documento indexado com sucesso na categoria "${category}"! ${chunks.length} segmentos processados.`,
       chunks: chunks.length,
       file: {
         id: fileRecordId,
         name: file.name,
         type: file.type,
-        chunks: chunks.length
+        chunks: chunks.length,
+        category: category
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
