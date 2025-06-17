@@ -29,11 +29,12 @@ export interface UploadFormProps {
   onFileUploaded: (file: { name: string; url: string; type: string; category?: string }) => void;
 }
 
+// Updated IndexedFileResult interface with category support
 export interface IndexedFileResult {
   id: string;
   name: string;
   type: string;
   url: string;
   chunks?: number;
-  category?: string;
+  category?: string; // Added category property
 }

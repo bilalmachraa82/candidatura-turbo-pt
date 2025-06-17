@@ -28,7 +28,7 @@ export interface GenerationResult {
   model?: string;
 }
 
-// Complete IndexingResult interface
+// Complete IndexingResult interface with category support
 export interface IndexingResult {
   success: boolean;
   documentId?: string;
@@ -39,6 +39,7 @@ export interface IndexingResult {
     type: string;
     url: string;
     chunks?: number;
+    category?: string; // Added category property
   };
 }
 
