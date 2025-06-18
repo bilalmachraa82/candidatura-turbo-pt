@@ -10,19 +10,26 @@ interface ModelSelectorProps {
 }
 
 const AI_MODELS = [
-  // OpenRouter Models (Recommended)
+  // OpenRouter Models 2025 - Recomendados
   {
     provider: 'openrouter',
     id: 'google/gemini-2.0-flash-exp',
     name: 'Gemini 2.0 Flash (Experimental)',
-    description: 'Mais rápido e eficiente',
+    description: 'Mais rápido e eficiente para candidaturas',
     badge: 'Recomendado'
+  },
+  {
+    provider: 'openrouter',
+    id: 'google/gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
+    description: 'Melhor para análises técnicas complexas',
+    badge: 'Premium'
   },
   {
     provider: 'openrouter',
     id: 'anthropic/claude-3.5-sonnet',
     name: 'Claude 3.5 Sonnet',
-    description: 'Excelente para texto técnico',
+    description: 'Excelente para texto técnico e jurídico',
     badge: 'Premium'
   },
   {
@@ -39,21 +46,12 @@ const AI_MODELS = [
     description: 'Modelo open-source avançado',
     badge: 'Open Source'
   },
-  
-  // Flowise Models (Fallback)
   {
-    provider: 'flowise',
-    id: 'gpt-4o',
-    name: 'GPT-4o (Flowise)',
-    description: 'Via Flowise endpoint',
-    badge: 'Backup'
-  },
-  {
-    provider: 'flowise',
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini (Flowise)',
-    description: 'Versão mais rápida via Flowise',
-    badge: 'Backup'
+    provider: 'openrouter',
+    id: 'qwen/qwen-2.5-72b-instruct',
+    name: 'Qwen 2.5 72B',
+    description: 'Rápido e económico',
+    badge: 'Económico'
   }
 ];
 
@@ -65,7 +63,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const handleValueChange = (newValue: string) => {
     const [provider, ...idParts] = newValue.split(':');
     const id = idParts.join(':');
-    onChange({ provider, id });
+    onChange({ provider: 'openrouter', id }); // Always use openrouter now
   };
 
   const getBadgeVariant = (badge: string) => {
@@ -78,14 +76,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         return 'outline';
       case 'Open Source':
         return 'outline';
-      case 'Backup':
+      case 'Económico':
         return 'secondary';
       default:
         return 'outline';
     }
   };
 
-  const currentValue = `${value.provider}:${value.id}`;
+  const currentValue = `openrouter:${value.id}`;
   const currentModel = AI_MODELS.find(model => `${model.provider}:${model.id}` === currentValue);
 
   return (
@@ -134,7 +132,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       
       {currentModel && (
         <p className="text-xs text-gray-500 mt-1">
-          Provider: {currentModel.provider === 'openrouter' ? 'OpenRouter' : 'Flowise'} • {currentModel.description}
+          OpenRouter • {currentModel.description}
         </p>
       )}
     </div>

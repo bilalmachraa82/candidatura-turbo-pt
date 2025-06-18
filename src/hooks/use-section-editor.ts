@@ -5,7 +5,6 @@ import { useAutoSave } from '@/hooks/use-auto-save';
 import { supabase } from '@/lib/supabase';
 import { generateSection } from '@/lib/generateSection';
 import { GenerationSource, adaptLegacySource } from '@/types/api';
-import { getSectionRecommendedModel } from '@/types/ai';
 
 interface UseSectionEditorProps {
   projectId: string;
@@ -27,9 +26,10 @@ export const useSectionEditor = ({
   const [text, setText] = useState(initialText);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // Usar modelo recomendado baseado na secção
-  const [selectedModel, setSelectedModel] = useState<{ provider: string; id: string }>(() => {
-    return getSectionRecommendedModel(sectionKey);
+  // Always use OpenRouter with recommended model
+  const [selectedModel, setSelectedModel] = useState<{ provider: string; id: string }>({
+    provider: 'openrouter',
+    id: 'google/gemini-2.0-flash-exp'
   });
   
   const { toast } = useToast();
@@ -55,12 +55,6 @@ export const useSectionEditor = ({
     delay: 3000, // 3 segundos de delay
     enabled: true
   });
-
-  // Atualizar modelo recomendado quando a secção muda
-  useEffect(() => {
-    const recommendedModel = getSectionRecommendedModel(sectionKey);
-    setSelectedModel(recommendedModel);
-  }, [sectionKey]);
 
   // Sincronizar texto inicial
   useEffect(() => {
@@ -96,13 +90,13 @@ export const useSectionEditor = ({
     try {
       setIsGenerating(true);
       
-      console.log('Generating with model:', selectedModel);
+      console.log('Generating with OpenRouter model:', selectedModel.id);
       
       const result = await generateSection(
         projectId,
         sectionKey,
         charLimit,
-        selectedModel.provider as 'openrouter' | 'flowise',
+        'openrouter', // Always OpenRouter
         selectedModel.id
       );
       
@@ -122,7 +116,7 @@ export const useSectionEditor = ({
       
       toast({
         title: "Texto gerado",
-        description: `Gerado com ${result.provider} usando ${selectedModel.id.split('/').pop()}`
+        description: `Gerado com OpenRouter usando ${selectedModel.id.split('/').pop()}`
       });
       
     } catch (error: any) {
