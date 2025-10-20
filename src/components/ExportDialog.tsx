@@ -29,33 +29,55 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const { toast } = useToast();
 
   const handleExport = async () => {
-    if (!projectId) return;
-    
+    if (!projectId) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "ID do projeto não disponível"
+      });
+      return;
+    }
+
+    // Validate format - only PDF is supported currently
+    if (format !== 'pdf') {
+      toast({
+        variant: "destructive",
+        title: "Formato não suportado",
+        description: "Atualmente apenas exportação em PDF está disponível. DOCX estará disponível em breve."
+      });
+      return;
+    }
+
     setIsExporting(true);
-    
+
     try {
       const result = await exportDocument(projectId, format, {
         includeAttachments,
         language
       });
-      
+
+      if (!result.success) {
+        throw new Error(result.message || 'Erro ao exportar documento');
+      }
+
       if (!result.url) {
         throw new Error('URL de exportação não disponível');
       }
-      
+
       // Create a temporary anchor element to trigger download
       const link = document.createElement('a');
       link.href = result.url;
-      link.download = `${projectName.replace(/\s+/g, '-').toLowerCase()}_${format}.${format}`;
+      link.download = result.fileName || `${projectName.replace(/\s+/g, '-').toLowerCase()}.${format}`;
+      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast({
         title: "Exportação concluída",
-        description: `O dossiê foi exportado em formato ${format.toUpperCase()}.`
+        description: `O dossiê foi exportado com sucesso em formato ${format.toUpperCase()}. ${result.sections || 0} seções incluídas.`
       });
-      
+
       onClose();
     } catch (error: any) {
       console.error("Export error:", error);
@@ -93,7 +115,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="pdf">PDF</SelectItem>
-                <SelectItem value="docx">DOCX (Word)</SelectItem>
+                <SelectItem value="docx" disabled>DOCX (Word) - Em breve</SelectItem>
               </SelectContent>
             </Select>
           </div>

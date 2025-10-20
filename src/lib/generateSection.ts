@@ -3,16 +3,16 @@ import { supabase } from '@/lib/supabase';
 import { GenerationResult } from '@/types/ai';
 
 export async function generateSection(
-  projectId: string, 
-  section: string, 
-  charLimit: number, 
-  provider: 'openrouter' | 'flowise', 
+  projectId: string,
+  section: string,
+  charLimit: number,
+  provider: 'openrouter',
   modelId: string
 ): Promise<GenerationResult> {
   console.log('generateSection called:', { projectId, section, charLimit, provider, modelId });
 
   try {
-    // Always use OpenRouter now, ignore provider parameter
+    // Use OpenRouter for AI generation
     const { data, error } = await supabase.functions.invoke('generate-openrouter', {
       body: {
         projectId,

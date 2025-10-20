@@ -8,7 +8,7 @@ Esta aplicação permite a criação, gestão e submissão de candidaturas ao pr
 - Node.js 18+
 - Npm 8+
 - Conta Supabase (para autenticação e armazenamento)
-- Endpoint Flowise (para geração de texto e RAG)
+- OpenRouter API Key (para geração de texto com IA)
 
 ## Configuração
 
@@ -27,8 +27,7 @@ npm install
 ```
 VITE_SUPABASE_URL=sua_url_supabase
 VITE_SUPABASE_ANON_KEY=sua_chave_anon_supabase
-VITE_FLOWISE_URL=seu_endpoint_flowise
-VITE_FLOWISE_API_KEY=sua_chave_api_flowise
+VITE_OPENROUTER_API_KEY=sua_chave_api_openrouter
 ```
 
 4. Inicie o servidor de desenvolvimento:
@@ -56,8 +55,7 @@ railway up
 4. Configure as variáveis de ambiente no dashboard do Railway:
    - SUPABASE_URL
    - SUPABASE_ANON_KEY
-   - FLOWISE_URL
-   - FLOWISE_API_KEY
+   - OPENROUTER_API_KEY
 
 ## Funcionalidades Principais
 
@@ -71,7 +69,7 @@ railway up
 
 - Frontend: React + Vite + TypeScript + TailwindCSS
 - Backend: Supabase (Auth, Database, Storage, Edge Functions)
-- AI: Flowise (LLM Orchestration + Vector Database)
+- AI: OpenRouter (LLM API with multi-model support)
 - Deployment: Railway
 
 ## Licença

@@ -1,4 +1,5 @@
 
+import { supabase } from '@/lib/supabase';
 import { ExportResult } from '@/types/api';
 
 interface ExportOptions {
@@ -13,52 +14,33 @@ export async function exportDocument(
   options?: Partial<ExportOptions>
 ): Promise<ExportResult> {
   try {
-    // Get environment variables
-    const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL;
-    const FLOWISE_API_KEY = import.meta.env.VITE_FLOWISE_API_KEY;
-
-    if (!FLOWISE_URL) {
-      throw new Error('FLOWISE_URL não está configurado');
-    }
-
-    // Build query params
-    const params = new URLSearchParams({
-      projectId,
-      format
-    });
-    
-    // Add optional params
-    if (options?.includeAttachments) {
-      params.append('attachments', options.includeAttachments.toString());
-    }
-    
-    if (options?.language) {
-      params.append('lang', options.language);
-    }
-
-    // Make request to the export API
-    const response = await fetch(`${FLOWISE_URL}/export?${params.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${FLOWISE_API_KEY}`
+    // Call the export-document edge function
+    const { data, error } = await supabase.functions.invoke('export-document', {
+      body: {
+        projectId,
+        format,
+        includeAttachments: options?.includeAttachments,
+        language: options?.language
       }
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error ${response.status}`);
+    if (error) {
+      console.error('Export edge function error:', error);
+      throw new Error(`Export error: ${error.message}`);
     }
 
-    const result = await response.json();
-    
+    if (!data.success) {
+      throw new Error(data.error || 'Erro na exportação do documento');
+    }
+
     return {
-      success: result.success,
-      url: result.url,
+      success: data.success,
+      url: data.url,
       fileName: `projeto-${projectId}.${format}`,
       format,
-      sections: result.sections || 0,
-      attachments: result.attachments || 0,
-      metadata: result.metadata
+      sections: data.sections || 0,
+      attachments: data.attachments || 0,
+      metadata: data.metadata
     };
   } catch (error: any) {
     console.error('Error exporting document:', error);

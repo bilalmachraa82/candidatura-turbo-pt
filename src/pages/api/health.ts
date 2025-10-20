@@ -17,16 +17,14 @@ export default async function handler(
     // Check environment variables are set
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    const flowiseUrl = import.meta.env.VITE_FLOWISE_URL;
-    const flowiseKey = import.meta.env.VITE_FLOWISE_API_KEY;
-    
+    const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+
     const missingEnvVars = [];
-    
+
     if (!supabaseUrl) missingEnvVars.push('VITE_SUPABASE_URL');
     if (!supabaseKey) missingEnvVars.push('VITE_SUPABASE_ANON_KEY');
-    if (!flowiseUrl) missingEnvVars.push('VITE_FLOWISE_URL');
-    if (!flowiseKey) missingEnvVars.push('VITE_FLOWISE_API_KEY');
-    
+    if (!openRouterKey) missingEnvVars.push('VITE_OPENROUTER_API_KEY');
+
     return res.status(200).json({
       status: 'healthy',
       timestamp: new Date().toISOString(),

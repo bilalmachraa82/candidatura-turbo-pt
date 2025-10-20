@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Layout from '@/components/Layout';
 import SidebarPanel from '@/components/SidebarPanel';
 import { useProject } from '@/hooks/use-project';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import ProjectHeader from '@/components/project/ProjectHeader';
 import ContentTab from '@/components/project/ContentTab';
 import DocumentsTab from '@/components/project/DocumentsTab';
@@ -14,8 +16,14 @@ const ProjectPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+  const [editedOrganization, setEditedOrganization] = useState('');
+  const [editedRegion, setEditedRegion] = useState('');
+  const [editedBudget, setEditedBudget] = useState<string>('');
+  const [editedContactEmail, setEditedContactEmail] = useState('');
+  const [editedContactPhone, setEditedContactPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  
+  const { toast } = useToast();
+
   const {
     project,
     files,
@@ -26,13 +34,19 @@ const ProjectPage: React.FC = () => {
     isLoading,
     handleFileUploaded,
     handleSectionTextChange,
-    handleSourcesUpdate
+    handleSourcesUpdate,
+    refetchProject
   } = useProject({ projectId });
 
   React.useEffect(() => {
     if (project && !isEditing) {
       setEditedTitle(project.title || '');
       setEditedDescription(project.description || '');
+      setEditedOrganization(project.organization || '');
+      setEditedRegion(project.region || '');
+      setEditedBudget(project.budget?.toString() || '');
+      setEditedContactEmail(project.contact_email || '');
+      setEditedContactPhone(project.contact_phone || '');
     }
   }, [project, isEditing]);
 
@@ -41,20 +55,75 @@ const ProjectPage: React.FC = () => {
       // Reset values when canceling
       setEditedTitle(project?.title || '');
       setEditedDescription(project?.description || '');
+      setEditedOrganization(project?.organization || '');
+      setEditedRegion(project?.region || '');
+      setEditedBudget(project?.budget?.toString() || '');
+      setEditedContactEmail(project?.contact_email || '');
+      setEditedContactPhone(project?.contact_phone || '');
     }
     setIsEditing(!isEditing);
   };
 
   const handleSave = async () => {
-    if (!project || !editedTitle.trim()) return;
-    
+    if (!project || !editedTitle.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "O título do projeto é obrigatório"
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // TODO: Implement project update logic
-      console.log('Saving project:', { title: editedTitle, description: editedDescription });
+      // Parse budget to number if provided
+      const budgetValue = editedBudget.trim() ? parseFloat(editedBudget) : null;
+
+      // Validate budget is a valid number if provided
+      if (editedBudget.trim() && (isNaN(budgetValue!) || budgetValue! < 0)) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "O orçamento deve ser um número válido"
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      // Update project in database
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          title: editedTitle.trim(),
+          description: editedDescription.trim() || null,
+          organization: editedOrganization.trim() || null,
+          region: editedRegion.trim() || null,
+          budget: budgetValue,
+          contact_email: editedContactEmail.trim() || null,
+          contact_phone: editedContactPhone.trim() || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      // Show success toast
+      toast({
+        title: "Sucesso!",
+        description: "Projeto atualizado com sucesso"
+      });
+
+      // Refetch project data to update UI
+      await refetchProject();
+
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving project:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar projeto",
+        description: error.message || "Ocorreu um erro ao atualizar o projeto. Tente novamente."
+      });
     } finally {
       setIsSaving(false);
     }
@@ -83,14 +152,24 @@ const ProjectPage: React.FC = () => {
   return (
     <Layout>
       <div className="pt-container pt-section">
-        <ProjectHeader 
+        <ProjectHeader
           project={project}
           isEditing={isEditing}
           editedTitle={editedTitle}
           editedDescription={editedDescription}
+          editedOrganization={editedOrganization}
+          editedRegion={editedRegion}
+          editedBudget={editedBudget}
+          editedContactEmail={editedContactEmail}
+          editedContactPhone={editedContactPhone}
           onEditToggle={handleEditToggle}
           onTitleChange={setEditedTitle}
           onDescriptionChange={setEditedDescription}
+          onOrganizationChange={setEditedOrganization}
+          onRegionChange={setEditedRegion}
+          onBudgetChange={setEditedBudget}
+          onContactEmailChange={setEditedContactEmail}
+          onContactPhoneChange={setEditedContactPhone}
           onSave={handleSave}
           isSaving={isSaving}
         />

@@ -14,6 +14,11 @@ interface ProjectData {
   id: string;
   title: string;
   description?: string;
+  organization?: string;
+  region?: string;
+  budget?: number;
+  contact_email?: string;
+  contact_phone?: string;
   created_at: string;
   updated_at: string;
   user_id: string;
@@ -64,6 +69,11 @@ export function useProject({ projectId }: UseProjectProps) {
         id: projectData.id,
         title: projectData.title,
         description: projectData.description,
+        organization: projectData.organization,
+        region: projectData.region,
+        budget: projectData.budget,
+        contact_email: projectData.contact_email,
+        contact_phone: projectData.contact_phone,
         created_at: projectData.created_at,
         updated_at: projectData.updated_at,
         user_id: projectData.user_id,
@@ -216,6 +226,7 @@ export function useProject({ projectId }: UseProjectProps) {
     indexed,
     handleFileUploaded,
     handleSectionTextChange,
-    handleSourcesUpdate
+    handleSourcesUpdate,
+    refetchProject: fetchProject
   };
 }

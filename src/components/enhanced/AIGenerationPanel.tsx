@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { Brain, Zap, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { generateText } from '@/api/generateText';
+import { generateSection } from '@/lib/generateSection';
 import ModelSelector from '@/components/ModelSelector';
 
 interface AIGenerationPanelProps {
@@ -36,25 +36,21 @@ const AIGenerationPanel: React.FC<AIGenerationPanelProps> = ({
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    
-    try {
-      const result = await generateText({
-        projectId,
-        section: sectionKey,
-        charLimit,
-        model: selectedModel.id,
-        language
-      });
 
-      if (result.success) {
-        onGenerated(result.text || '', result.sources || []);
-        toast({
-          title: "Conteúdo gerado com sucesso",
-          description: `${result.charsUsed} caracteres gerados usando ${selectedModel.id.split('/').pop()}`,
-        });
-      } else {
-        throw new Error(result.error || 'Erro na geração');
-      }
+    try {
+      const result = await generateSection(
+        projectId,
+        sectionKey,
+        charLimit,
+        'openrouter', // Always use openrouter now
+        selectedModel.id
+      );
+
+      onGenerated(result.text || '', result.sources || []);
+      toast({
+        title: "Conteúdo gerado com sucesso",
+        description: `${result.charsUsed} caracteres gerados usando ${selectedModel.id.split('/').pop()}`,
+      });
     } catch (error: any) {
       console.error('Erro na geração:', error);
       toast({
