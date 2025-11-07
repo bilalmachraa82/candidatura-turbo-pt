@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { exportDocument } from '@/api/exportDocument';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
+import { analytics } from '@/lib/analytics';
 
 interface ExportDialogProps {
   projectId: string;
@@ -77,6 +78,9 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
         title: "Exportação concluída",
         description: `O dossiê foi exportado com sucesso em formato ${format.toUpperCase()}. ${result.sections || 0} seções incluídas.`
       });
+
+      // Track PDF export
+      analytics.pdfExported(projectId, result.sections || 0);
 
       onClose();
     } catch (error: any) {

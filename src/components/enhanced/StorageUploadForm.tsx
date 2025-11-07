@@ -8,6 +8,7 @@ import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Cloud } from 'luci
 import { useToast } from '@/hooks/use-toast';
 import { indexDocument } from '@/api/indexDocuments';
 import { supabase } from '@/lib/supabase';
+import { analytics } from '@/lib/analytics';
 
 interface StorageUploadFormProps {
   title: string;
@@ -122,6 +123,12 @@ const StorageUploadForm: React.FC<StorageUploadFormProps> = ({
           title: "🎉 Upload concluído!",
           description: `Documento carregado em "${title}" e processado com sucesso!`
         });
+
+        // Track document upload
+        analytics.documentUploaded(
+          uploadState.file.type,
+          uploadState.file.size
+        );
 
         if (onFileUploaded && result.file) {
           onFileUploaded({

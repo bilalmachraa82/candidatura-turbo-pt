@@ -75,6 +75,17 @@ Aplicação web para gestão de candidaturas ao programa Portugal 2030, com assi
    - Preparação de dados para PDF/DOCX
    - Geração efetiva NÃO implementada
 
+7. **Notificações por Email** (Resend)
+   - Sistema completo de notificações por email
+   - 5 templates responsivos em português:
+     - Projeto partilhado
+     - Lembretes de prazo (7, 3, 1 dia antes)
+     - Exportação pronta
+     - Problemas de validação
+     - Boas-vindas
+   - Preferências personalizáveis por utilizador
+   - Gestão de frequência (imediato, diário, nunca)
+
 ---
 
 ## PROBLEMAS CRÍTICOS Identificados
@@ -567,6 +578,333 @@ return new Response(
 
 ---
 
+### `send-email` ✅ Funcional
+
+**Path:** `/supabase/functions/send-email/index.ts`
+
+**Propósito:**
+- Enviar emails de notificação usando Resend API
+- Templates HTML responsivos em português
+- Suporte a 5 tipos de notificações
+
+**Templates disponíveis:**
+
+1. **project_shared** - Partilha de projeto
+   ```typescript
+   {
+     sharedBy: string;
+     projectName: string;
+     projectUrl: string;
+     recipientName?: string;
+   }
+   ```
+
+2. **deadline_reminder** - Lembrete de prazo
+   ```typescript
+   {
+     projectName: string;
+     daysUntilDeadline: number; // 7, 3, 1, ou 0
+     deadline: string;
+     projectUrl: string;
+     recipientName?: string;
+   }
+   ```
+
+3. **export_ready** - Exportação concluída
+   ```typescript
+   {
+     projectName: string;
+     downloadUrl: string;
+     expiresIn: string;
+     recipientName?: string;
+   }
+   ```
+
+4. **validation_issues** - Problemas detetados
+   ```typescript
+   {
+     projectName: string;
+     issueCount: number;
+     criticalCount: number;
+     projectUrl: string;
+     issues: Array<{
+       section: string;
+       message: string;
+       severity: 'critical' | 'warning' | 'info';
+     }>;
+     recipientName?: string;
+   }
+   ```
+
+5. **welcome** - Boas-vindas
+   ```typescript
+   {
+     userName: string;
+     loginUrl: string;
+   }
+   ```
+
+**Input:**
+```typescript
+{
+  to: string | string[];
+  template: EmailTemplate;
+  data: TemplateData;
+  from?: string;
+}
+```
+
+**Output:**
+```typescript
+{
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+```
+
+**Dependências:**
+- `RESEND_API_KEY` (secret)
+
+**Chamada:**
+```typescript
+const { data, error } = await supabase.functions.invoke('send-email', {
+  body: {
+    to: 'user@example.com',
+    template: 'project_shared',
+    data: {
+      sharedBy: 'João Silva',
+      projectName: 'Projeto PT2030',
+      projectUrl: 'https://...'
+    }
+  }
+});
+```
+
+---
+
+## Sistema de Notificações por Email
+
+### Arquitetura
+
+**Componentes principais:**
+
+1. **Edge Function** - `send-email`
+   - Envia emails via Resend API
+   - Templates HTML inline CSS
+   - Gestão de erros
+
+2. **Library** - `src/lib/emailNotifications.ts`
+   - Funções helper para cada tipo de email
+   - Verificação de preferências
+   - Formatação de dados
+
+3. **Hooks** - `src/hooks/`
+   - `useProjectSharing.ts` - Partilha de projetos
+   - `useDeadlineReminders.ts` - Gestão de lembretes
+
+4. **Database Tables:**
+   - `email_preferences` - Preferências de utilizador
+   - `deadline_reminders_sent` - Tracking de emails enviados
+   - `project_shares` - Partilhas entre utilizadores
+   - `profiles` - Informação de utilizadores
+
+### Configuração Resend
+
+**1. Obter API Key:**
+- Criar conta em: https://resend.com
+- Gerar API key: https://resend.com/api-keys
+
+**2. Configurar domínio:**
+
+**Desenvolvimento:**
+```bash
+# Usar domínio de teste (não requer verificação)
+# Emails serão enviados de: noreply@resend.dev
+```
+
+**Produção:**
+```bash
+# 1. Adicionar domínio em: https://resend.com/domains
+# 2. Adicionar registos DNS:
+#    - TXT: resend._domainkey
+#    - TXT: _dmarc
+# 3. Verificar domínio
+# 4. Atualizar 'from' nos emails para: noreply@seudominio.com
+```
+
+**3. Configurar secret no Supabase:**
+```bash
+supabase secrets set RESEND_API_KEY=re_...
+```
+
+### Uso das Notificações
+
+**Partilhar projeto:**
+```typescript
+import { useProjectSharing } from '@/hooks/useProjectSharing';
+
+const { shareProject } = useProjectSharing();
+
+await shareProject({
+  projectId: 'uuid',
+  projectName: 'Projeto PT2030',
+  userEmail: 'colega@example.com',
+  permission: 'edit'
+});
+// Email enviado automaticamente se preferência ativada
+```
+
+**Lembretes de prazo:**
+```typescript
+import { useDeadlineReminders } from '@/hooks/useDeadlineReminders';
+
+const { sendReminders } = useDeadlineReminders();
+
+// Verificar e enviar lembretes (executar diariamente via cron)
+const results = await sendReminders();
+console.log(`Enviados: ${results.sent}, Falhados: ${results.failed}`);
+```
+
+**Email de exportação:**
+```typescript
+import { sendExportReadyEmail } from '@/lib/emailNotifications';
+
+await sendExportReadyEmail(
+  user.email,
+  user.id,
+  {
+    projectName: 'Projeto PT2030',
+    downloadUrl: signedUrl,
+    expiresIn: '1 hora'
+  }
+);
+```
+
+### Preferências de Email
+
+**Schema da tabela:**
+```sql
+CREATE TABLE email_preferences (
+  user_id UUID PRIMARY KEY,
+  project_shared BOOLEAN DEFAULT true,
+  deadline_reminders BOOLEAN DEFAULT true,
+  export_ready BOOLEAN DEFAULT true,
+  validation_issues BOOLEAN DEFAULT true,
+  frequency TEXT DEFAULT 'immediate' -- 'immediate', 'daily_digest', 'never'
+);
+```
+
+**Atualizar preferências:**
+```typescript
+import { updateEmailPreferences } from '@/lib/emailNotifications';
+
+await updateEmailPreferences(userId, {
+  deadline_reminders: false,
+  frequency: 'daily_digest'
+});
+```
+
+### Templates de Email
+
+Todos os templates incluem:
+- Design responsivo (mobile-friendly)
+- Inline CSS para compatibilidade
+- Linguagem portuguesa
+- Botões de ação (CTA)
+- Cores e branding consistentes
+- Informação contextual clara
+
+**Cores por tipo:**
+- Partilha: Gradient roxo (#667eea → #764ba2)
+- Prazo urgente: Vermelho (#dc2626)
+- Prazo próximo: Laranja (#ea580c)
+- Prazo normal: Ciano (#0891b2)
+- Exportação: Verde (#10b981)
+- Validação: Vermelho (#dc2626)
+- Boas-vindas: Gradient roxo
+
+### Teste de Emails
+
+**Página de teste:** `/test-email`
+
+Permite:
+- Selecionar template
+- Preencher dados de teste
+- Enviar para qualquer email
+- Ver resultado em tempo real
+
+**Aceder:**
+```bash
+# Adicionar rota em App.tsx ou router
+# Navegar para: http://localhost:5173/test-email
+```
+
+### Automação (Próximos passos)
+
+**Lembretes automáticos via cron:**
+
+Opção 1 - Supabase Cron (pg_cron):
+```sql
+-- Executar diariamente às 9h
+SELECT cron.schedule(
+  'deadline-reminders',
+  '0 9 * * *',
+  $$ SELECT net.http_post(
+    url := 'https://[project].supabase.co/functions/v1/check-deadlines',
+    headers := '{"Authorization": "Bearer [SERVICE_KEY]"}'
+  ) $$
+);
+```
+
+Opção 2 - GitHub Actions:
+```yaml
+# .github/workflows/deadline-reminders.yml
+name: Deadline Reminders
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Diariamente às 9h UTC
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminders
+        run: |
+          curl -X POST https://[project].supabase.co/functions/v1/check-deadlines \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}"
+```
+
+Opção 3 - Serviço externo (Cron-job.org, EasyCron)
+
+### Melhores Práticas
+
+1. **Rate Limiting:**
+   - Resend free tier: 100 emails/dia
+   - Pro: 50,000 emails/mês
+   - Implementar queue se volume alto
+
+2. **Error Handling:**
+   - Não falhar operação principal se email falhar
+   - Logar erros para análise
+   - Retry com backoff exponencial
+
+3. **Testing:**
+   - Usar resend.dev em desenvolvimento
+   - Verificar domínio em produção
+   - Testar todos os templates antes deploy
+
+4. **GDPR/Privacidade:**
+   - Permitir opt-out fácil
+   - Não incluir dados sensíveis em emails
+   - Respeitar preferências de utilizador
+
+5. **Performance:**
+   - Emails não bloqueiam UI (async)
+   - Verificar preferências antes enviar
+   - Tracking de emails enviados (evitar duplicados)
+
+---
+
 ## Configuração de Desenvolvimento
 
 ### 1. Setup Inicial
@@ -608,10 +946,12 @@ supabase db push
 ```bash
 # Definir secrets
 supabase secrets set OPENROUTER_API_KEY=sk-or-v1-...
+supabase secrets set RESEND_API_KEY=re_...
 
 # Deploy functions
 supabase functions deploy generate-openrouter
 supabase functions deploy index-document
+supabase functions deploy send-email
 ```
 
 ### 4. Variáveis de Ambiente

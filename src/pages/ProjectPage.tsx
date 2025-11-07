@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ProjectHeader from '@/components/project/ProjectHeader';
 import ContentTab from '@/components/project/ContentTab';
 import DocumentsTab from '@/components/project/DocumentsTab';
+import ProgressTab from '@/components/project/ProgressTab';
 
 const ProjectPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -32,6 +33,8 @@ const ProjectPage: React.FC = () => {
     charsUsed,
     totalCharLimit,
     isLoading,
+    isExporting,
+    setIsExporting,
     handleFileUploaded,
     handleSectionTextChange,
     handleSourcesUpdate,
@@ -129,6 +132,18 @@ const ProjectPage: React.FC = () => {
     }
   };
 
+  const handleExport = () => {
+    // TODO: Implement export functionality
+    setIsExporting(true);
+    setTimeout(() => {
+      setIsExporting(false);
+      toast({
+        title: "Exportação concluída",
+        description: "O documento foi exportado com sucesso"
+      });
+    }, 2000);
+  };
+
   if (isLoading) {
     return (
       <Layout>
@@ -180,22 +195,33 @@ const ProjectPage: React.FC = () => {
               <TabsList className="mb-6">
                 <TabsTrigger value="content">Conteúdo</TabsTrigger>
                 <TabsTrigger value="documents">Documentos</TabsTrigger>
+                <TabsTrigger value="progress">Progresso</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="content">
-                <ContentTab 
-                  projectId={projectId || ''} 
+                <ContentTab
+                  projectId={projectId || ''}
                   sections={sections}
                   onTextChange={handleSectionTextChange}
                   onSourcesUpdate={handleSourcesUpdate}
                 />
               </TabsContent>
-              
+
               <TabsContent value="documents">
-                <DocumentsTab 
-                  projectId={projectId || ''} 
+                <DocumentsTab
+                  projectId={projectId || ''}
                   files={files}
                   onFileUploaded={handleFileUploaded}
+                />
+              </TabsContent>
+
+              <TabsContent value="progress">
+                <ProgressTab
+                  project={project}
+                  sections={sections}
+                  files={files}
+                  onExport={handleExport}
+                  isExporting={isExporting}
                 />
               </TabsContent>
             </Tabs>

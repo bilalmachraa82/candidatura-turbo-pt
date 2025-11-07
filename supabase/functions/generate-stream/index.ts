@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { withSentry, trackSpan } from '../_shared/sentry.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +10,7 @@ const corsHeaders = {
 // Generate embeddings using OpenAI
 async function generateEmbedding(text: string): Promise<number[]> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-  
+
   if (!openaiApiKey) {
     throw new Error('OPENAI_API_KEY não configurada');
   }
@@ -44,7 +43,7 @@ async function searchDocuments(supabase: any, projectId: string, query: string, 
   try {
     // Generate embedding for the query
     const queryEmbedding = await generateEmbedding(query);
-    
+
     // Search for similar document chunks
     const { data: chunks, error } = await supabase.rpc('match_document_chunks', {
       query_embedding: `[${queryEmbedding.join(',')}]`,
@@ -65,13 +64,13 @@ async function searchDocuments(supabase: any, projectId: string, query: string, 
   }
 }
 
-serve(withSentry(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Generate OpenRouter function called');
+    console.log('Generate Stream function called');
 
     const { projectId, section, charLimit, model } = await req.json();
 
@@ -79,7 +78,7 @@ serve(withSentry(async (req) => {
       throw new Error('ProjectId e section são obrigatórios');
     }
 
-    console.log('Processing request:', { projectId, section, charLimit, model });
+    console.log('Processing streaming request:', { projectId, section, charLimit, model });
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -103,13 +102,13 @@ serve(withSentry(async (req) => {
     // Search for relevant documents
     const searchQuery = `${sectionData.title} ${sectionData.description || ''}`;
     const relevantChunks = await searchDocuments(supabase, projectId, searchQuery, 8);
-    
+
     console.log(`Found ${relevantChunks.length} relevant document chunks`);
 
     // Prepare context from relevant documents
     let context = '';
     const sources = [];
-    
+
     if (relevantChunks.length > 0) {
       context = '\n\nDOCUMENTAÇÃO RELEVANTE:\n';
       relevantChunks.forEach((chunk, index) => {
@@ -143,9 +142,9 @@ ${context}
 
 Gere o conteúdo para a secção "${sectionData.title}":`;
 
-    // Call OpenRouter API
+    // Call OpenRouter API with streaming
     const openrouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
-    
+
     if (!openrouterApiKey) {
       throw new Error('OPENROUTER_API_KEY não configurada');
     }
@@ -171,7 +170,8 @@ Gere o conteúdo para a secção "${sectionData.title}":`;
           }
         ],
         temperature: 0.7,
-        max_tokens: Math.min(Math.floor(charLimit * 1.2), 4000)
+        max_tokens: Math.min(Math.floor(charLimit * 1.2), 4000),
+        stream: true
       })
     });
 
@@ -181,32 +181,104 @@ Gere o conteúdo para a secção "${sectionData.title}":`;
       throw new Error(`Erro na API OpenRouter: ${openrouterResponse.status}`);
     }
 
-    const openrouterData = await openrouterResponse.json();
-    const generatedText = openrouterData.choices[0].message.content;
+    // Create a readable stream for Server-Sent Events
+    const encoder = new TextEncoder();
+    let fullText = '';
 
-    // Log generation for tracking
-    await supabase.from('generations').insert({
-      project_id: projectId,
-      section_key: section,
-      model: model || 'google/gemini-2.0-flash-exp'
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const reader = openrouterResponse.body?.getReader();
+          if (!reader) {
+            throw new Error('No response body');
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              // Send completion event with sources
+              const completeEvent = `data: ${JSON.stringify({
+                done: true,
+                text: fullText,
+                sources: sources,
+                charsUsed: fullText.length
+              })}\n\n`;
+              controller.enqueue(encoder.encode(completeEvent));
+
+              // Log generation for tracking
+              await supabase.from('generations').insert({
+                project_id: projectId,
+                section_key: section,
+                model: model || 'google/gemini-2.0-flash-exp'
+              });
+
+              console.log('Streaming completed, total chars:', fullText.length);
+              controller.close();
+              break;
+            }
+
+            // Decode the chunk
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+
+                if (data === '[DONE]') {
+                  continue;
+                }
+
+                try {
+                  const parsed = JSON.parse(data);
+                  const token = parsed.choices?.[0]?.delta?.content;
+
+                  if (token) {
+                    fullText += token;
+
+                    // Send token to client
+                    const event = `data: ${JSON.stringify({
+                      token: token,
+                      done: false
+                    })}\n\n`;
+                    controller.enqueue(encoder.encode(event));
+                  }
+                } catch (e) {
+                  // Skip invalid JSON
+                  console.warn('Failed to parse SSE data:', e);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Streaming error:', error);
+          const errorEvent = `data: ${JSON.stringify({
+            error: error.message,
+            done: true
+          })}\n\n`;
+          controller.enqueue(encoder.encode(errorEvent));
+          controller.close();
+        }
+      }
     });
 
-    console.log('Text generation completed successfully');
-
-    return new Response(JSON.stringify({
-      success: true,
-      text: generatedText,
-      charsUsed: generatedText.length,
-      sources: sources,
-      chunksUsed: relevantChunks.length,
-      searchMethod: relevantChunks.length > 0 ? 'vector' : 'none'
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      }
     });
 
   } catch (error: any) {
-    console.error('Error in generate-openrouter function:', error);
-    
+    console.error('Error in generate-stream function:', error);
+
     return new Response(JSON.stringify({
       success: false,
       error: error.message || 'Erro desconhecido na geração',
@@ -216,4 +288,4 @@ Gere o conteúdo para a secção "${sectionData.title}":`;
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-}));
+});

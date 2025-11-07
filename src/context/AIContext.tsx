@@ -2,6 +2,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { generateSection } from '@/lib/generateSection';
 import { GenerationSource, adaptLegacySource } from '@/types/api';
+import { analytics } from '@/lib/analytics';
 
 interface GenerateTextParams {
   projectId: string;
@@ -40,9 +41,11 @@ interface AIProviderProps {
 
 export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
   const generateText = async (params: GenerateTextParams): Promise<GenerateTextResult> => {
+    const startTime = Date.now();
+
     try {
       console.log('AIContext generateText called with:', params);
-      
+
       // Always use OpenRouter with updated 2025 models
       let modelId = params.model || 'google/gemini-2.0-flash-exp';
       
@@ -72,12 +75,25 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
 
       console.log('Using OpenRouter model:', modelId);
 
+      // Track AI generation started
+      analytics.aiGenerationStarted(params.section, modelId);
+
       const result = await generateSection(
         params.projectId,
         params.section,
         params.charLimit,
         'openrouter', // Always OpenRouter
         modelId
+      );
+
+      const duration = Date.now() - startTime;
+
+      // Track AI generation completed
+      analytics.aiGenerationCompleted(
+        params.section,
+        modelId,
+        duration,
+        result.text.length
       );
 
       // Transform to legacy format for compatibility using adapter function
@@ -96,6 +112,14 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
 
     } catch (error: any) {
       console.error('Error in AIContext generateText:', error);
+
+      // Track AI generation failure
+      analytics.aiGenerationFailed(
+        params.section,
+        params.model || 'google/gemini-2.0-flash-exp',
+        error.message || 'Erro desconhecido'
+      );
+
       return {
         success: false,
         text: '',

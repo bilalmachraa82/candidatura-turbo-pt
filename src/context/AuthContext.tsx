@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { analytics } from '@/lib/analytics';
 
 interface AuthContextType {
   user: User | null;
@@ -65,6 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: false, error: error };
       }
       console.log('Login successful');
+      analytics.userLoggedIn();
       return { success: true };
     } catch (error) {
       console.error('Login exception:', error);
@@ -81,6 +83,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: false, error: error };
       }
       console.log('Registration successful');
+      analytics.userSignedUp();
       return { success: true };
     } catch (error) {
       console.error('Registration exception:', error);

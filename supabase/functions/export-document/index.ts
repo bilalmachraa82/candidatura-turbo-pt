@@ -2,6 +2,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.0'
 import PDFDocument from 'https://esm.sh/pdfkit@0.13.0'
+import { withSentry, trackSpan } from '../_shared/sentry.ts'
 
 // Configurar cabeçalhos CORS
 const corsHeaders = {
@@ -162,7 +163,7 @@ async function generatePDF(project: any, sections: any[], language: string): Pro
 }
 
 // Função principal servida pela Edge Function
-serve(async (req) => {
+serve(withSentry(async (req) => {
   // Lidar com requests de preflight CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -343,4 +344,4 @@ serve(async (req) => {
       }
     )
   }
-})
+}))
