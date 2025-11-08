@@ -16,6 +16,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import ProjectPage from '@/pages/ProjectPage';
 import ContactPage from '@/pages/ContactPage';
 import TestPage from '@/pages/TestPage';
+import AcceptInvitePage from '@/pages/AcceptInvitePage';
 import NotFound from '@/pages/NotFound';
 
 import './App.css';
@@ -32,6 +33,7 @@ function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/test" element={<TestPage />} />
+        <Route path="/invite/:token" element={<AcceptInvitePage />} />
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={

@@ -2,8 +2,11 @@
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Lock } from 'lucide-react';
 import EnhancedSectionEditor from '@/components/enhanced/EnhancedSectionEditor';
 import { ProjectSection } from '@/types/components';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 
 interface ContentTabProps {
   projectId: string;
@@ -18,6 +21,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
   onTextChange,
   onSourcesUpdate
 }) => {
+  const { permissions } = useProjectPermissions(projectId);
   const getSectionCompletionStatus = (section: ProjectSection) => {
     const contentLength = section.content?.length || 0;
     const charLimit = section.charLimit || 2000;
@@ -35,9 +39,20 @@ const ContentTab: React.FC<ContentTabProps> = ({
       <div className="bg-gradient-to-r from-pt-blue to-pt-green text-white p-6 rounded-lg">
         <h2 className="text-2xl font-bold mb-2">Conteúdo do Projeto</h2>
         <p className="text-blue-100">
-          Desenvolva cada secção da sua candidatura PT2030 com apoio de IA baseada nos seus documentos
+          {permissions.canEdit
+            ? 'Desenvolva cada secção da sua candidatura PT2030 com apoio de IA baseada nos seus documentos'
+            : 'Visualiza o conteúdo do projeto (apenas leitura)'}
         </p>
       </div>
+
+      {!permissions.canEdit && (
+        <Alert>
+          <Lock className="h-4 w-4" />
+          <AlertDescription>
+            Não tens permissão para editar o conteúdo. Apenas proprietários, administradores e editores podem fazer alterações.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg border shadow-sm">
@@ -88,6 +103,7 @@ const ContentTab: React.FC<ContentTabProps> = ({
                   projectId={projectId}
                   onTextChange={onTextChange}
                   onSourcesUpdate={onSourcesUpdate}
+                  readOnly={!permissions.canEdit}
                 />
               </AccordionContent>
             </AccordionItem>

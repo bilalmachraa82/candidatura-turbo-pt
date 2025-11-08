@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Download, Edit3, Save, FileText } from 'lucide-react';
+import { Calendar, Download, Edit3, Save, FileText, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ExportModal from './ExportModal';
+import ShareProjectModal from './ShareProjectModal';
+import ProjectMembers from './ProjectMembers';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 
 interface ProjectHeaderProps {
   project: {
@@ -64,7 +67,9 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   isSaving
 }) => {
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const { toast } = useToast();
+  const { permissions } = useProjectPermissions(project.id);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-PT', {
@@ -289,15 +294,37 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
               </>
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onEditToggle}
-                >
-                  <Edit3 className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-                
+                {/* Project Members */}
+                <ProjectMembers
+                  projectId={project.id}
+                  maxVisible={3}
+                  onOpenShareModal={() => setShowShareModal(true)}
+                />
+
+                {/* Share Button */}
+                {permissions.canInviteMembers && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowShareModal(true)}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Partilhar
+                  </Button>
+                )}
+
+                {/* Edit Button */}
+                {permissions.canEditProjectSettings && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onEditToggle}
+                  >
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -327,6 +354,13 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
         onClose={() => setShowExportModal(false)}
         projectId={project.id}
         projectTitle={project.title}
+      />
+
+      <ShareProjectModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        projectId={project.id}
+        projectName={project.title}
       />
     </>
   );

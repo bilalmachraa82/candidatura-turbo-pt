@@ -11,6 +11,7 @@ import ProjectHeader from '@/components/project/ProjectHeader';
 import ContentTab from '@/components/project/ContentTab';
 import DocumentsTab from '@/components/project/DocumentsTab';
 import ProgressTab from '@/components/project/ProgressTab';
+import { ChatCopilot } from '@/components/ChatCopilot';
 
 const ProjectPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -165,80 +166,85 @@ const ProjectPage: React.FC = () => {
   }
 
   return (
-    <Layout>
-      <div className="pt-container pt-section">
-        <ProjectHeader
-          project={project}
-          isEditing={isEditing}
-          editedTitle={editedTitle}
-          editedDescription={editedDescription}
-          editedOrganization={editedOrganization}
-          editedRegion={editedRegion}
-          editedBudget={editedBudget}
-          editedContactEmail={editedContactEmail}
-          editedContactPhone={editedContactPhone}
-          onEditToggle={handleEditToggle}
-          onTitleChange={setEditedTitle}
-          onDescriptionChange={setEditedDescription}
-          onOrganizationChange={setEditedOrganization}
-          onRegionChange={setEditedRegion}
-          onBudgetChange={setEditedBudget}
-          onContactEmailChange={setEditedContactEmail}
-          onContactPhoneChange={setEditedContactPhone}
-          onSave={handleSave}
-          isSaving={isSaving}
-        />
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Tabs defaultValue="content">
-              <TabsList className="mb-6">
-                <TabsTrigger value="content" data-tab="content">Conteúdo</TabsTrigger>
-                <TabsTrigger value="documents" data-tab="documents">Documentos</TabsTrigger>
-                <TabsTrigger value="progress" data-tab="progress">Progresso</TabsTrigger>
-              </TabsList>
+    <>
+      <Layout>
+        <div className="pt-container pt-section">
+          <ProjectHeader
+            project={project}
+            isEditing={isEditing}
+            editedTitle={editedTitle}
+            editedDescription={editedDescription}
+            editedOrganization={editedOrganization}
+            editedRegion={editedRegion}
+            editedBudget={editedBudget}
+            editedContactEmail={editedContactEmail}
+            editedContactPhone={editedContactPhone}
+            onEditToggle={handleEditToggle}
+            onTitleChange={setEditedTitle}
+            onDescriptionChange={setEditedDescription}
+            onOrganizationChange={setEditedOrganization}
+            onRegionChange={setEditedRegion}
+            onBudgetChange={setEditedBudget}
+            onContactEmailChange={setEditedContactEmail}
+            onContactPhoneChange={setEditedContactPhone}
+            onSave={handleSave}
+            isSaving={isSaving}
+          />
 
-              <TabsContent value="content">
-                <ContentTab
-                  projectId={projectId || ''}
-                  sections={sections}
-                  onTextChange={handleSectionTextChange}
-                  onSourcesUpdate={handleSourcesUpdate}
-                />
-              </TabsContent>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Tabs defaultValue="content">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="content" data-tab="content">Conteúdo</TabsTrigger>
+                  <TabsTrigger value="documents" data-tab="documents">Documentos</TabsTrigger>
+                  <TabsTrigger value="progress" data-tab="progress">Progresso</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="documents">
-                <DocumentsTab
-                  projectId={projectId || ''}
-                  files={files}
-                  onFileUploaded={handleFileUploaded}
-                />
-              </TabsContent>
+                <TabsContent value="content">
+                  <ContentTab
+                    projectId={projectId || ''}
+                    sections={sections}
+                    onTextChange={handleSectionTextChange}
+                    onSourcesUpdate={handleSourcesUpdate}
+                  />
+                </TabsContent>
 
-              <TabsContent value="progress">
-                <ProgressTab
-                  project={project}
-                  sections={sections}
-                  files={files}
-                  onExport={handleExport}
-                  isExporting={isExporting}
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
-          
-          <div className="lg:col-span-1">
-            <SidebarPanel 
-              projectId={projectId || ''}
-              charsUsed={charsUsed}
-              charLimit={totalCharLimit}
-              ragStatus="medium"
-              sources={sources}
-            />
+                <TabsContent value="documents">
+                  <DocumentsTab
+                    projectId={projectId || ''}
+                    files={files}
+                    onFileUploaded={handleFileUploaded}
+                  />
+                </TabsContent>
+
+                <TabsContent value="progress">
+                  <ProgressTab
+                    project={project}
+                    sections={sections}
+                    files={files}
+                    onExport={handleExport}
+                    isExporting={isExporting}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="lg:col-span-1">
+              <SidebarPanel
+                projectId={projectId || ''}
+                charsUsed={charsUsed}
+                charLimit={totalCharLimit}
+                ragStatus="medium"
+                sources={sources}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </Layout>
+      </Layout>
+
+      {/* AI Chat Copilot - Always available on project page */}
+      <ChatCopilot projectId={projectId} />
+    </>
   );
 };
 

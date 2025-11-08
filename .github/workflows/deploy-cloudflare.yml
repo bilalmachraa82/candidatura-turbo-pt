@@ -1,0 +1,317 @@
+name: Deploy to Cloudflare Pages
+
+# ============================================================================
+# Workflow Triggers
+# ============================================================================
+on:
+  # Deploy production on push to main branch
+  push:
+    branches:
+      - main
+
+  # Deploy preview on pull requests
+  pull_request:
+    branches:
+      - main
+
+  # Allow manual deployment from Actions tab
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - preview
+
+# ============================================================================
+# Environment Variables
+# ============================================================================
+env:
+  NODE_VERSION: '18'
+  PROJECT_NAME: 'pt2030-candidaturas'
+
+# ============================================================================
+# Jobs
+# ============================================================================
+jobs:
+  # ==========================================================================
+  # Build Job
+  # ==========================================================================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for better caching
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Build application
+      - name: Build application
+        run: npm run build
+        env:
+          # Build-time environment variables
+          # These are public and will be embedded in the client bundle
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_OPENROUTER_API_KEY: ${{ secrets.VITE_OPENROUTER_API_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_PUBLIC_URL: ${{ secrets.VITE_PUBLIC_URL }}
+          # Sentry source maps upload (optional)
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+
+      # Upload build artifacts
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+      # Display build summary
+      - name: Display build summary
+        run: |
+          echo "### Build Summary 📦" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build size:** $(du -sh dist | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Files:** $(find dist -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Node version:** $(node -v)" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm version:** $(npm -v)" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Deploy Production Job
+  # ==========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://${{ env.PROJECT_NAME }}.pages.dev
+
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Download build artifacts
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      # Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages (Production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ env.PROJECT_NAME }} --branch=main
+
+      # Display deployment summary
+      - name: Display deployment summary
+        run: |
+          echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://${{ env.PROJECT_NAME }}.pages.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** main" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Deploy Preview Job
+  # ==========================================================================
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+    environment:
+      name: preview
+      url: https://${{ github.head_ref }}.${{ env.PROJECT_NAME }}.pages.dev
+
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Download build artifacts
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      # Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages (Preview)
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ env.PROJECT_NAME }} --branch=${{ github.head_ref }}
+
+      # Comment on PR with preview URL
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branch = context.payload.pull_request.head.ref.replace(/[^a-zA-Z0-9-]/g, '-');
+            const previewUrl = `https://${branch}.${{ env.PROJECT_NAME }}.pages.dev`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### 🚀 Preview Deployment Ready!\n\n**Preview URL:** ${previewUrl}\n\n- **Branch:** \`${context.payload.pull_request.head.ref}\`\n- **Commit:** \`${context.sha.substring(0, 7)}\`\n\nThe preview will be automatically updated when you push new commits.`
+            })
+
+      # Display deployment summary
+      - name: Display deployment summary
+        run: |
+          BRANCH_NAME=$(echo "${{ github.head_ref }}" | sed 's/[^a-zA-Z0-9-]/-/g')
+          echo "### Preview Deployment 🔍" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** Preview" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://$BRANCH_NAME.${{ env.PROJECT_NAME }}.pages.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.head_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Test Deployment Job
+  # ==========================================================================
+  test-deployment:
+    name: Test Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-production, deploy-preview]
+    if: always() && (needs.deploy-production.result == 'success' || needs.deploy-preview.result == 'success')
+
+    steps:
+      # Determine deployment URL
+      - name: Set deployment URL
+        id: set-url
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "url=https://${{ env.PROJECT_NAME }}.pages.dev" >> $GITHUB_OUTPUT
+          else
+            BRANCH_NAME=$(echo "${{ github.head_ref }}" | sed 's/[^a-zA-Z0-9-]/-/g')
+            echo "url=https://$BRANCH_NAME.${{ env.PROJECT_NAME }}.pages.dev" >> $GITHUB_OUTPUT
+          fi
+
+      # Wait for deployment to propagate
+      - name: Wait for deployment
+        run: sleep 10
+
+      # Test HTTP status
+      - name: Test HTTP status
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.set-url.outputs.url }}")
+          echo "HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Deployment test failed with HTTP $HTTP_STATUS"
+            exit 1
+          fi
+          echo "✅ Deployment is responding with HTTP 200"
+
+      # Test response time
+      - name: Test response time
+        run: |
+          RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' "${{ steps.set-url.outputs.url }}")
+          RESPONSE_MS=$(echo "$RESPONSE_TIME * 1000" | bc)
+          echo "Response time: ${RESPONSE_MS}ms"
+
+          echo "### Performance Test 📊" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Response time:** ${RESPONSE_MS}ms" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** ${{ steps.set-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+
+      # Test SPA routing (optional)
+      - name: Test SPA routing
+        run: |
+          # Test that sub-routes return 200 (not 404)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.set-url.outputs.url }}/dashboard")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "⚠️  SPA routing may not be configured correctly"
+          else
+            echo "✅ SPA routing is working"
+          fi
+
+# ============================================================================
+# Workflow Annotations
+# ============================================================================
+# This workflow provides:
+#
+# ✅ Automatic deployments on push to main
+# ✅ Preview deployments for all PRs
+# ✅ Manual deployment trigger via workflow_dispatch
+# ✅ Build artifact caching for faster deployments
+# ✅ Automated testing of deployments
+# ✅ PR comments with preview URLs
+# ✅ GitHub deployment environments
+# ✅ Performance testing
+#
+# Required Secrets (set in GitHub repo settings):
+# - CLOUDFLARE_API_TOKEN: API token from Cloudflare dashboard
+# - CLOUDFLARE_ACCOUNT_ID: Account ID from Cloudflare dashboard
+# - VITE_SUPABASE_URL: Supabase project URL
+# - VITE_SUPABASE_ANON_KEY: Supabase anonymous key
+# - VITE_OPENROUTER_API_KEY: OpenRouter API key (optional)
+# - VITE_SENTRY_DSN: Sentry DSN (optional)
+# - VITE_POSTHOG_KEY: PostHog key (optional)
+# - VITE_PUBLIC_URL: Public URL of deployment
+#
+# Optional Secrets:
+# - SENTRY_AUTH_TOKEN: For uploading source maps to Sentry
+# - SENTRY_ORG: Sentry organization slug
+# - SENTRY_PROJECT: Sentry project name
+#
+# Setup Instructions:
+#
+# 1. Get Cloudflare API Token:
+#    - Go to: https://dash.cloudflare.com/profile/api-tokens
+#    - Click "Create Token"
+#    - Use "Edit Cloudflare Workers" template
+#    - Add permissions: Account > Cloudflare Pages > Edit
+#    - Copy token
+#
+# 2. Get Cloudflare Account ID:
+#    - Go to: https://dash.cloudflare.com/
+#    - Select your account
+#    - Copy Account ID from sidebar
+#
+# 3. Add secrets to GitHub:
+#    - Go to: GitHub repo → Settings → Secrets and variables → Actions
+#    - Click "New repository secret"
+#    - Add all required secrets
+#
+# 4. Enable GitHub Actions:
+#    - Go to: GitHub repo → Actions
+#    - Enable workflows if prompted
+#
+# 5. Test workflow:
+#    - Create a PR or push to main
+#    - Check Actions tab for workflow run
+#
+# ============================================================================

@@ -104,4 +104,128 @@ export const analytics = {
       posthog.capture('error_occurred', { errorType, errorMessage, ...context });
     }
   },
+
+  // Quality Scoring
+  qualityScoreCalculated: (sectionId: string, score: number, duration: number) => {
+    if (posthog.__loaded) {
+      posthog.capture('quality_score_calculated', { sectionId, score, duration });
+    }
+  },
+
+  qualityIssueClicked: (severity: string, category: string, sectionId: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('quality_issue_clicked', { severity, category, sectionId });
+    }
+  },
+
+  qualitySuggestionApplied: (sectionId: string, suggestionType: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('quality_suggestion_applied', { sectionId, suggestionType });
+    }
+  },
+
+  qualityReScored: (sectionId: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('quality_rescored', { sectionId });
+    }
+  },
+
+  // Chat Copilot
+  chatCopilotOpened: (projectId?: string, currentSection?: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('chat_copilot_opened', { projectId, currentSection });
+    }
+  },
+
+  chatConversationCreated: (projectId: string, hasSection: boolean) => {
+    if (posthog.__loaded) {
+      posthog.capture('chat_conversation_created', { projectId, hasSection });
+    }
+  },
+
+  chatMessageSent: (metadata: {
+    projectId: string;
+    conversationId: string;
+    hasSection: boolean;
+    messageLength: number;
+    stream: boolean;
+  }) => {
+    if (posthog.__loaded) {
+      posthog.capture('chat_message_sent', metadata);
+    }
+  },
+
+  chatSuggestionUsed: (prompt: string, projectId?: string, currentSection?: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('chat_suggestion_used', { prompt, projectId, currentSection });
+    }
+  },
+
+  // Version History
+  versionHistoryOpened: (sectionId: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('version_history_opened', { sectionId });
+    }
+  },
+
+  versionViewed: (sectionId: string, versionId: string, timeAgo: string, isAiGenerated: boolean) => {
+    if (posthog.__loaded) {
+      posthog.capture('version_viewed', { sectionId, versionId, timeAgo, isAiGenerated });
+    }
+  },
+
+  versionCompared: (sectionId: string, versionId: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('version_compared', { sectionId, versionId });
+    }
+  },
+
+  versionRestored: (sectionId: string, versionId: string, versionAge: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('version_restored', { sectionId, versionId, versionAge });
+    }
+  },
+
+  // RBAC and Team Collaboration
+  projectShared: (role: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('project_shared', { role });
+    }
+  },
+
+  invitationSent: (role: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('invitation_sent', { role });
+    }
+  },
+
+  invitationAccepted: (role: string, projectId: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('invitation_accepted', { role, projectId });
+    }
+  },
+
+  invitationDeclined: (role: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('invitation_declined', { role });
+    }
+  },
+
+  memberRoleChanged: (oldRole: string, newRole: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('member_role_changed', { oldRole, newRole });
+    }
+  },
+
+  memberRemoved: (role: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('member_removed', { role });
+    }
+  },
+
+  memberLeft: (role: string) => {
+    if (posthog.__loaded) {
+      posthog.capture('member_left', { role });
+    }
+  },
 };

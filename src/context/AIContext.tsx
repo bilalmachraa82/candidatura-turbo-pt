@@ -3,13 +3,14 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { generateSection } from '@/lib/generateSection';
 import { GenerationSource, adaptLegacySource } from '@/types/api';
 import { analytics } from '@/lib/analytics';
+import { getOptimalModel, type AIProvider } from '@/lib/modelRouter';
 
 interface GenerateTextParams {
   projectId: string;
   section: string;
   charLimit: number;
   model?: string;
-  provider?: 'openrouter'; // Only OpenRouter now
+  provider?: AIProvider; // Support all providers: claude, gemini, openrouter
 }
 
 interface GenerateTextResult {
@@ -19,6 +20,11 @@ interface GenerateTextResult {
   error?: string;
   provider?: string;
   charsUsed?: number;
+  usage?: {
+    cachedTokens?: number;
+    cacheHitRate?: string;
+    estimatedCost?: number;
+  };
 }
 
 interface AIContextType {
@@ -46,34 +52,28 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
     try {
       console.log('AIContext generateText called with:', params);
 
-      // Always use OpenRouter with updated 2025 models
-      let modelId = params.model || 'google/gemini-2.0-flash-exp';
-      
-      // Handle legacy model format and map to 2025 models
-      if (params.model) {
-        const legacyModelMapping: Record<string, string> = {
-          'gpt-4o': 'openai/gpt-4o',
-          'gpt-4.1': 'openai/gpt-4o',
-          'claude-3-opus': 'anthropic/claude-3.5-sonnet',
-          'claude-4-sonnet': 'anthropic/claude-3.5-sonnet',
-          'gemini-pro': 'google/gemini-2.5-pro',
-          'claude-3.5-sonnet': 'anthropic/claude-3.5-sonnet',
-          'gemini-flash': 'google/gemini-2.0-flash-exp'
-        };
+      // Use intelligent model routing if no provider specified
+      let provider: AIProvider;
+      let modelId: string;
 
-        // Map legacy models to new ones
-        if (legacyModelMapping[params.model]) {
-          modelId = legacyModelMapping[params.model];
-        } else if (!params.model.includes('/')) {
-          // If it's not in OpenRouter format, use default
-          modelId = 'google/gemini-2.0-flash-exp';
-        } else {
-          // Already in OpenRouter format
-          modelId = params.model;
-        }
+      if (params.provider && params.model) {
+        // User specified both provider and model - use as-is
+        provider = params.provider;
+        modelId = params.model;
+      } else {
+        // Use intelligent routing based on section
+        const optimal = getOptimalModel(params.section);
+        provider = optimal.provider;
+        modelId = optimal.model;
+
+        console.log('Model routing decision:', {
+          section: params.section,
+          provider: optimal.provider,
+          model: optimal.model,
+          rationale: optimal.rationale,
+          priority: optimal.priority
+        });
       }
-
-      console.log('Using OpenRouter model:', modelId);
 
       // Track AI generation started
       analytics.aiGenerationStarted(params.section, modelId);
@@ -82,7 +82,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
         params.projectId,
         params.section,
         params.charLimit,
-        'openrouter', // Always OpenRouter
+        provider,
         modelId
       );
 
@@ -106,7 +106,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
           reference: source.reference,
           type: source.type
         })) || [],
-        provider: 'openrouter',
+        provider: provider,
         charsUsed: result.charsUsed
       };
 
@@ -116,7 +116,7 @@ export const AIProvider: React.FC<AIProviderProps> = ({ children }) => {
       // Track AI generation failure
       analytics.aiGenerationFailed(
         params.section,
-        params.model || 'google/gemini-2.0-flash-exp',
+        params.model || 'auto-routing',
         error.message || 'Erro desconhecido'
       );
 
