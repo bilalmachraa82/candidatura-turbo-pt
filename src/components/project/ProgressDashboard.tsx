@@ -25,8 +25,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Download,
-  TrendingUp
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { ProjectProgress, getStatusColor, getStatusLabel } from '@/lib/progressCalculator';
 import { PROGRESS_THRESHOLDS } from '@/data/pt2030Checklist';
 
@@ -81,6 +83,27 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
 
   // Can export when progress >= threshold
   const canExport = progress.overall >= PROGRESS_THRESHOLDS.EXPORT_ENABLED;
+
+  // Show empty state for projects just getting started
+  if (progress.overall === 0 && progress.documents.uploaded === 0) {
+    return (
+      <EmptyState
+        icon={BarChart3}
+        title="Comece a preencher o projeto"
+        description="O progresso será calculado automaticamente à medida que completa secções e carrega documentos."
+        action={{
+          label: 'Ver Checklist',
+          onClick: () => {
+            // Trigger tab navigation to checklist
+            const event = new CustomEvent('navigate-to-tab', { detail: { tab: 'checklist' } });
+            window.dispatchEvent(event);
+          }
+        }}
+        secondaryText="Comece por preencher as secções principais ou carregar documentos para ativar a IA"
+        minHeight="min-h-[400px]"
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -193,6 +216,7 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
                 className="w-full mt-4"
                 onClick={onExport}
                 disabled={!canExport || isExporting}
+                data-command="export-pdf"
               >
                 <Download className="h-4 w-4 mr-2" />
                 {isExporting

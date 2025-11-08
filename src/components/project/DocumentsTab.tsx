@@ -2,7 +2,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Eye, Brain, Cloud, Shield, Download } from 'lucide-react';
+import { FileText, Eye, Brain, Cloud, Shield, Download, Upload } from 'lucide-react';
+import { EmptyStateWithBorder } from '@/components/EmptyState';
 import StorageUploadForm from '@/components/enhanced/StorageUploadForm';
 import { UploadedFile } from '@/types/components';
 
@@ -96,7 +97,19 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
           />
         </div>
       </div>
-      
+
+      {files.length === 0 && (
+        <div className="mt-8">
+          <EmptyStateWithBorder
+            icon={Upload}
+            title="Nenhum documento carregado"
+            description="Carregue documentos para ativar a geração contextual de IA (RAG). Suporta PDF, Word, Excel, e texto."
+            secondaryText="Máximo 50MB por ficheiro • Os documentos são armazenados de forma segura e processados automaticamente"
+            minHeight="min-h-[250px]"
+          />
+        </div>
+      )}
+
       {files.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-6">

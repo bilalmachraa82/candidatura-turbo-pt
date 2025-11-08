@@ -1,9 +1,11 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { FileText, Sparkles } from 'lucide-react';
 import AIGenerationPanel from './AIGenerationPanel';
 import { ProjectSection } from '@/types/components';
 
@@ -22,6 +24,8 @@ const EnhancedSectionEditor: React.FC<EnhancedSectionEditorProps> = ({
 }) => {
   const [text, setText] = useState(section.content);
   const [sources, setSources] = useState<any[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const aiPanelRef = useRef<HTMLDivElement>(null);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
@@ -84,11 +88,37 @@ const EnhancedSectionEditor: React.FC<EnhancedSectionEditorProps> = ({
             />
           </div>
 
+          {text.length === 0 ? (
+            <div className="flex flex-col items-center justify-center min-h-[200px] text-center p-6 border rounded-lg bg-muted/30">
+              <FileText className="h-8 w-8 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground text-sm mb-4">
+                Esta secção está vazia. Comece a escrever ou gere conteúdo com IA.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => textareaRef.current?.focus()}
+                >
+                  Escrever Manualmente
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => aiPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Gerar com IA
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <Textarea
+            ref={textareaRef}
             value={text}
             onChange={handleTextChange}
             placeholder={`Escreva o conteúdo para ${section.title}...`}
-            className={`min-h-[200px] resize-y ${isOverLimit ? 'border-red-300 focus:border-red-500' : ''}`}
+            className={`min-h-[200px] resize-y ${isOverLimit ? 'border-red-300 focus:border-red-500' : ''} ${text.length === 0 ? 'sr-only' : ''}`}
             maxLength={charLimit + 500} // Allow slight overflow for editing
           />
 
@@ -115,14 +145,16 @@ const EnhancedSectionEditor: React.FC<EnhancedSectionEditorProps> = ({
         </CardContent>
       </Card>
 
-      <AIGenerationPanel
-        projectId={projectId}
-        sectionKey={section.key}
-        sectionTitle={section.title}
-        charLimit={charLimit}
-        onGenerated={handleAIGeneration}
-        disabled={false}
-      />
+      <div ref={aiPanelRef}>
+        <AIGenerationPanel
+          projectId={projectId}
+          sectionKey={section.key}
+          sectionTitle={section.title}
+          charLimit={charLimit}
+          onGenerated={handleAIGeneration}
+          disabled={false}
+        />
+      </div>
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { initSentry } from './config/sentry'
 import * as Sentry from '@sentry/react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initPosthog, posthog } from '@/config/posthog'
+import { ThemeProvider } from '@/providers/ThemeProvider'
 
 // Initialize Sentry
 initSentry()
@@ -49,8 +50,15 @@ supabase.auth.onAuthStateChange((event, session) => {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      storageKey="pt2030-theme"
+    >
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </ThemeProvider>
   </React.StrictMode>,
 )

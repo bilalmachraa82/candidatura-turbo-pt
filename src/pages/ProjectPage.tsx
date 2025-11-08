@@ -193,9 +193,9 @@ const ProjectPage: React.FC = () => {
           <div className="lg:col-span-2">
             <Tabs defaultValue="content">
               <TabsList className="mb-6">
-                <TabsTrigger value="content">Conteúdo</TabsTrigger>
-                <TabsTrigger value="documents">Documentos</TabsTrigger>
-                <TabsTrigger value="progress">Progresso</TabsTrigger>
+                <TabsTrigger value="content" data-tab="content">Conteúdo</TabsTrigger>
+                <TabsTrigger value="documents" data-tab="documents">Documentos</TabsTrigger>
+                <TabsTrigger value="progress" data-tab="progress">Progresso</TabsTrigger>
               </TabsList>
 
               <TabsContent value="content">

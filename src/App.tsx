@@ -6,6 +6,7 @@ import { AIProvider } from '@/context/AIContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { usePageTracking } from '@/hooks/usePageTracking';
 import { CookieConsent } from '@/components/CookieConsent';
+import { CommandPalette } from '@/components/CommandPalette';
 
 // Pages
 import LoginPage from '@/pages/LoginPage';
@@ -51,6 +52,7 @@ function AppRoutes() {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <CommandPalette />
       <Toaster />
       <CookieConsent />
     </>
