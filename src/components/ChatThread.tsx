@@ -56,7 +56,7 @@ const ChatThread: React.FC<ChatThreadProps> = ({
         projectId,
         refinedPrompt,
         charLimit,
-        model.provider as 'openrouter' | 'flowise',
+        'openrouter',
         model.id
       );
 
@@ -98,7 +98,7 @@ const ChatThread: React.FC<ChatThreadProps> = ({
         projectId,
         section,
         charLimit,
-        model.provider as 'openrouter' | 'flowise',
+        'openrouter',
         model.id
       );
 
@@ -130,7 +130,7 @@ const ChatThread: React.FC<ChatThreadProps> = ({
           <MessageSquare className="h-4 w-4" />
           Chat IA - Refinamento de Secção
           <Badge variant="outline" className="text-xs">
-            {model.provider === 'openrouter' ? 'OpenRouter' : 'Flowise'}
+            OpenRouter
           </Badge>
         </CardTitle>
       </CardHeader>

@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { withSentry, trackSpan } from '../_shared/sentry.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,14 +65,14 @@ async function searchDocuments(supabase: any, projectId: string, query: string, 
   }
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log('Generate OpenRouter function called');
-    
+
     const { projectId, section, charLimit, model } = await req.json();
 
     if (!projectId || !section) {
@@ -215,4 +216,4 @@ Gere o conteúdo para a secção "${sectionData.title}":`;
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-});
+}));

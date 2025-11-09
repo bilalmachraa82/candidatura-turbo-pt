@@ -1,55 +1,83 @@
 
 import { supabase } from '@/lib/supabase';
 import { GenerationResult } from '@/types/ai';
+import { trackAIGeneration, Events, trackEvent } from '@/lib/monitoring';
+import { getProviderConfig, type AIProvider } from '@/lib/modelRouter';
 
 export async function generateSection(
-  projectId: string, 
-  section: string, 
-  charLimit: number, 
-  provider: 'openrouter' | 'flowise', 
+  projectId: string,
+  section: string,
+  charLimit: number,
+  provider: AIProvider,
   modelId: string
 ): Promise<GenerationResult> {
   console.log('generateSection called:', { projectId, section, charLimit, provider, modelId });
 
+  // Track AI generation performance
+  trackEvent(Events.AI_GENERATION_STARTED, 'info', { section, provider, modelId });
+
   try {
-    // Always use OpenRouter now, ignore provider parameter
-    const { data, error } = await supabase.functions.invoke('generate-openrouter', {
-      body: {
-        projectId,
-        section,
-        charLimit,
-        model: modelId || 'google/gemini-2.0-flash-exp'
+    const result = await trackAIGeneration(section, modelId, async () => {
+      // Get provider configuration
+      const providerConfig = getProviderConfig(provider);
+
+      // Call appropriate edge function based on provider
+      const { data, error } = await supabase.functions.invoke(providerConfig.edgeFunction, {
+        body: {
+          projectId,
+          section,
+          charLimit,
+          model: modelId
+        }
+      });
+
+      if (error) {
+        console.error(`${provider} edge function error:`, error);
+        throw new Error(`${provider} error: ${error.message}`);
       }
+
+      if (!data.success) {
+        throw new Error(data.error || `Erro na geração ${provider}`);
+      }
+
+      const generationResult: GenerationResult = {
+        text: data.text,
+        charsUsed: data.charsUsed,
+        sources: data.sources || [],
+        provider: provider,
+        model: modelId
+      };
+
+      // Add metadata if available
+      if (data.chunksUsed !== undefined) {
+        console.log(`Used ${data.chunksUsed} document chunks via ${data.searchMethod} search`);
+      }
+
+      // Log cache performance for Claude
+      if (provider === 'claude' && data.usage) {
+        console.log('Claude cache performance:', {
+          cachedTokens: data.usage.cachedTokens,
+          cacheHitRate: data.usage.cacheHitRate,
+          estimatedCost: data.usage.estimatedCost
+        });
+      }
+
+      console.log('Generation completed:', {
+        provider: generationResult.provider,
+        charsUsed: generationResult.charsUsed,
+        sourcesCount: generationResult.sources.length
+      });
+
+      return generationResult;
     });
 
-    if (error) {
-      console.error('OpenRouter edge function error:', error);
-      throw new Error(`OpenRouter error: ${error.message}`);
-    }
-
-    if (!data.success) {
-      throw new Error(data.error || 'Erro na geração OpenRouter');
-    }
-
-    const result: GenerationResult = {
-      text: data.text,
-      charsUsed: data.charsUsed,
-      sources: data.sources || [],
-      provider: 'openrouter',
-      model: modelId
-    };
-
-    // Add metadata if available
-    if (data.chunksUsed !== undefined) {
-      console.log(`Used ${data.chunksUsed} document chunks via ${data.searchMethod} search`);
-    }
-
-    console.log('Generation completed:', { 
-      provider: result.provider, 
+    trackEvent(Events.AI_GENERATION_COMPLETED, 'info', {
+      section,
+      provider,
       charsUsed: result.charsUsed,
-      sourcesCount: result.sources.length 
+      sourcesCount: result.sources.length
     });
-    
+
     return result;
 
   } catch (error: any) {

@@ -1,0 +1,256 @@
+# ============================================================================
+# Wrangler Configuration for Cloudflare Pages
+# ============================================================================
+# This configuration file is used by the Wrangler CLI to deploy and manage
+# the PT2030 Candidaturas application on Cloudflare Pages.
+#
+# Documentation:
+# - Wrangler: https://developers.cloudflare.com/workers/wrangler/
+# - Pages: https://developers.cloudflare.com/pages/platform/functions/
+#
+# Usage:
+#   wrangler pages deploy dist --project-name=pt2030-candidaturas
+# ============================================================================
+
+# Project name on Cloudflare Pages
+# This should match your project name in the Cloudflare dashboard
+name = "pt2030-candidaturas"
+
+# Compatibility date
+# This locks the behavior of Cloudflare Workers to a specific date
+# Update this when you want to adopt new runtime features
+# Format: YYYY-MM-DD
+compatibility_date = "2025-11-08"
+
+# Build output directory
+# This is where Vite outputs the built files
+pages_build_output_dir = "dist"
+
+# ============================================================================
+# Pages Configuration
+# ============================================================================
+
+# Account ID (optional - Wrangler will prompt if not set)
+# Find this in: Cloudflare Dashboard → Your Account → Workers & Pages
+# account_id = "your-account-id-here"
+
+# ============================================================================
+# Build Configuration
+# ============================================================================
+# Note: Build settings are primarily configured in cloudflare-pages.toml
+# This file is mainly for Wrangler CLI deployments and Workers Functions
+
+# ============================================================================
+# Environment Variables
+# ============================================================================
+# Variables defined here are available during the build process
+# For runtime variables, use Cloudflare Pages dashboard instead
+
+[vars]
+# These are build-time variables (optional)
+# For production runtime variables, set them in Cloudflare Pages dashboard
+
+# ============================================================================
+# Custom Domains
+# ============================================================================
+# Custom domains are configured via Cloudflare Pages dashboard
+# Go to: Pages → pt2030-candidaturas → Custom domains
+
+# ============================================================================
+# Analytics (optional)
+# ============================================================================
+# Enable Web Analytics for your Pages project
+
+# [analytics]
+# beacon_token = "your-analytics-token"
+
+# ============================================================================
+# Workers Functions (Advanced - Optional)
+# ============================================================================
+# Cloudflare Pages supports serverless functions in /functions directory
+# These run on Cloudflare Workers at the edge
+#
+# To add serverless functions:
+# 1. Create /functions directory in project root
+# 2. Add .ts or .js files (e.g., /functions/api/hello.ts)
+# 3. Functions are automatically deployed with Pages
+#
+# Example function structure:
+# /functions
+#   /api
+#     hello.ts        → Accessible at /api/hello
+#     [[path]].ts     → Catch-all for /api/*
+#   _middleware.ts    → Runs on all requests
+#
+# Function routing is automatic based on file structure
+
+# ============================================================================
+# KV Namespaces (Advanced - Optional)
+# ============================================================================
+# Cloudflare KV (Key-Value) storage for serverless data
+# Only needed if using Workers Functions with KV storage
+
+# [[kv_namespaces]]
+# binding = "MY_KV"
+# id = "your-kv-namespace-id"
+
+# [[kv_namespaces]]
+# binding = "MY_KV_PREVIEW"
+# id = "your-preview-kv-namespace-id"
+# preview = true
+
+# ============================================================================
+# Durable Objects (Advanced - Optional)
+# ============================================================================
+# Cloudflare Durable Objects for stateful serverless applications
+# Only needed for advanced use cases (real-time collaboration, etc.)
+
+# [[durable_objects.bindings]]
+# name = "MY_DURABLE_OBJECT"
+# class_name = "MyDurableObject"
+# script_name = "my-durable-object-worker"
+
+# ============================================================================
+# R2 Buckets (Advanced - Optional)
+# ============================================================================
+# Cloudflare R2 object storage (S3-compatible)
+# Useful for storing user uploads, images, documents, etc.
+
+# [[r2_buckets]]
+# binding = "MY_BUCKET"
+# bucket_name = "pt2030-candidaturas-uploads"
+
+# ============================================================================
+# D1 Databases (Advanced - Optional)
+# ============================================================================
+# Cloudflare D1 serverless SQL database
+# Alternative to Supabase for simple use cases
+
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "pt2030-candidaturas-db"
+# database_id = "your-database-id"
+
+# ============================================================================
+# Service Bindings (Advanced - Optional)
+# ============================================================================
+# Bind other Cloudflare Workers to your Pages project
+
+# [[services]]
+# binding = "MY_SERVICE"
+# service = "my-worker-service"
+# environment = "production"
+
+# ============================================================================
+# Routes (Advanced - Optional)
+# ============================================================================
+# Custom routing rules for Workers
+# Pages handles routing automatically via file-based routing
+
+# [routes]
+# pattern = "example.com/*"
+# zone_id = "your-zone-id"
+
+# ============================================================================
+# Observability
+# ============================================================================
+# Logging and monitoring configuration
+
+# [observability]
+# enabled = true
+
+# ============================================================================
+# Deployment Configuration
+# ============================================================================
+
+# [triggers]
+# Automatic deployments via Git integration
+# Configured in Cloudflare Pages dashboard, not here
+
+# [build]
+# Build configuration (use cloudflare-pages.toml instead)
+# command = "npm run build"
+# cwd = "."
+
+# ============================================================================
+# Development Settings
+# ============================================================================
+
+# [dev]
+# Configuration for local development with Wrangler
+# ip = "0.0.0.0"
+# port = 8787
+# local_protocol = "http"
+
+# ============================================================================
+# Miniflare Settings (Local Development)
+# ============================================================================
+# Miniflare is a local simulator for Cloudflare Workers/Pages
+
+# [miniflare]
+# Configuration for local development
+# kv_persist = true
+# d1_persist = true
+
+# ============================================================================
+# Limits
+# ============================================================================
+# Cloudflare Pages Limits (as of 2025):
+# - 25 MB per deployment (compressed)
+# - 20,000 files per deployment
+# - 500 deployments per month (more with paid plan)
+# - 100 GB bandwidth per day (free plan)
+# - Unlimited requests
+#
+# If you exceed limits:
+# - Optimize bundle size (code splitting, tree shaking)
+# - Use R2 for large assets
+# - Contact Cloudflare support for limit increases
+
+# ============================================================================
+# Notes
+# ============================================================================
+# 1. Static Site Deployment:
+#    - For static React apps (like this project), you only need basic config
+#    - Most settings above are for advanced features (Workers, KV, etc.)
+#
+# 2. Git-based Deployments:
+#    - Cloudflare Pages can auto-deploy from GitHub
+#    - Recommended over manual Wrangler deployments for production
+#
+# 3. Preview Deployments:
+#    - Every PR gets a unique preview URL
+#    - Automatically cleaned up when PR is closed
+#
+# 4. Environment Variables:
+#    - Set in Cloudflare Pages dashboard, not in this file
+#    - Separate values for Production vs Preview environments
+#
+# 5. Custom Domains:
+#    - Configure via Cloudflare Pages dashboard
+#    - Automatic SSL provisioning
+#    - Can have multiple domains per project
+#
+# ============================================================================
+# Deployment Commands
+# ============================================================================
+#
+# Deploy to production:
+#   wrangler pages deploy dist --project-name=pt2030-candidaturas --branch=main
+#
+# Deploy preview:
+#   wrangler pages deploy dist --project-name=pt2030-candidaturas --branch=feature-branch
+#
+# List deployments:
+#   wrangler pages deployment list --project-name=pt2030-candidaturas
+#
+# View deployment logs:
+#   wrangler pages deployment tail --project-name=pt2030-candidaturas
+#
+# Create new project:
+#   wrangler pages project create pt2030-candidaturas
+#
+# Delete project (careful!):
+#   wrangler pages project delete pt2030-candidaturas
+#
+# ============================================================================

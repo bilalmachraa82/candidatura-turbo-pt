@@ -19,6 +19,26 @@ export interface ProjectSection {
   description: string;
   content: string;
   charLimit: number;
+  qualityScore?: number;
+  qualityData?: {
+    overall: number;
+    breakdown: {
+      completeness: number;
+      specificity: number;
+      keywords: number;
+      structure: number;
+      compliance: number;
+    };
+    issues: Array<{
+      severity: 'critical' | 'warning' | 'suggestion';
+      category: string;
+      message: string;
+      suggestion: string;
+    }>;
+    strengths: string[];
+    suggestions: string[];
+  };
+  lastScoredAt?: string;
 }
 
 export interface UploadFormProps {

@@ -4,6 +4,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/AuthContext';
 import { AIProvider } from '@/context/AIContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { usePageTracking } from '@/hooks/usePageTracking';
+import { CookieConsent } from '@/components/CookieConsent';
+import { CommandPalette } from '@/components/CommandPalette';
 
 // Pages
 import LoginPage from '@/pages/LoginPage';
@@ -13,9 +16,50 @@ import DashboardPage from '@/pages/DashboardPage';
 import ProjectPage from '@/pages/ProjectPage';
 import ContactPage from '@/pages/ContactPage';
 import TestPage from '@/pages/TestPage';
+import AcceptInvitePage from '@/pages/AcceptInvitePage';
 import NotFound from '@/pages/NotFound';
 
 import './App.css';
+
+function AppRoutes() {
+  usePageTracking();
+
+  return (
+    <>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/test" element={<TestPage />} />
+        <Route path="/invite/:token" element={<AcceptInvitePage />} />
+
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/projects/:projectId" element={
+          <ProtectedRoute>
+            <ProjectPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Root redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <CommandPalette />
+      <Toaster />
+      <CookieConsent />
+    </>
+  );
+}
 
 function App() {
   return (
@@ -23,34 +67,7 @@ function App() {
       <AIProvider>
         <Router>
           <div className="App">
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/test" element={<TestPage />} />
-              
-              {/* Protected Routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/projects/:projectId" element={
-                <ProtectedRoute>
-                  <ProjectPage />
-                </ProtectedRoute>
-              } />
-              
-              {/* Root redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Toaster />
+            <AppRoutes />
           </div>
         </Router>
       </AIProvider>

@@ -35,6 +35,23 @@ export interface GenerationResult {
   model?: string;
 }
 
+export interface StreamChunk {
+  token?: string;
+  done: boolean;
+  text?: string;
+  sources?: Source[];
+  charsUsed?: number;
+  error?: string;
+}
+
+export interface StreamingGenerationState {
+  text: string;
+  isStreaming: boolean;
+  error: string | null;
+  sources: Source[];
+  charsUsed: number;
+}
+
 export interface HybridGenerationOptions {
   projectId: string;
   section: string;

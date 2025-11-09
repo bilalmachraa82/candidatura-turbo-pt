@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, FolderPlus, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
 import NewProjectDialog from '@/components/NewProjectDialog';
 import ProjectCardActions from '@/components/ProjectCardActions';
+import { EmptyState } from '@/components/EmptyState';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -98,7 +99,7 @@ const DashboardPage: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'draft':
-        return <Badge variant="outline" className="bg-gray-100">Rascunho</Badge>;
+        return <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800">Rascunho</Badge>;
       case 'review':
         return <Badge className="bg-amber-500">Em Revisão</Badge>;
       case 'submitted':
@@ -117,17 +118,18 @@ const DashboardPage: React.FC = () => {
       <div className="pt-container pt-section">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-pt-blue">Meus Projetos</h1>
-            <p className="text-gray-600 mt-2">Gerencie as suas candidaturas PT2030</p>
+            <h1 className="text-3xl font-bold text-pt-blue dark:text-pt-green">Meus Projetos</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">Gerencie as suas candidaturas PT2030</p>
             <div className="mt-2 space-y-2">
               <SupabaseConnectionStatus showToast={true} />
               <AuthStatus />
             </div>
           </div>
-          <Button 
+          <Button
             onClick={() => setIsDialogOpen(true)}
             className="mt-4 md:mt-0 bg-pt-green text-white hover:bg-pt-blue"
             disabled={!user}
+            data-command="create-project"
           >
             <Plus className="mr-2 h-4 w-4" />
             Novo Projeto
@@ -135,10 +137,10 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {!user ? (
-          <div className="text-center p-12 bg-gray-50 rounded-lg border border-dashed">
-            <FileText className="h-12 w-12 mx-auto text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Autenticação necessária</h3>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="text-center p-12 bg-gray-50 dark:bg-gray-900 rounded-lg border border-dashed dark:border-gray-700">
+            <FileText className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-600" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">Autenticação necessária</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Precisa estar autenticado para ver e criar projetos.
             </p>
             <Link to="/login">
@@ -152,7 +154,7 @@ const DashboardPage: React.FC = () => {
         ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="border rounded-lg h-48 animate-pulse bg-gray-100"></div>
+              <div key={i} className="border rounded-lg h-48 animate-pulse bg-gray-100 dark:bg-gray-800"></div>
             ))}
           </div>
         ) : projects.length > 0 ? (
@@ -162,7 +164,7 @@ const DashboardPage: React.FC = () => {
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-xl text-pt-blue truncate">{project.title}</CardTitle>
+                      <CardTitle className="text-xl text-pt-blue dark:text-pt-green truncate">{project.title}</CardTitle>
                       {getStatusBadge(project.status)}
                     </div>
                     <ProjectCardActions
@@ -175,18 +177,18 @@ const DashboardPage: React.FC = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center text-sm text-gray-500">
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                     <span className="font-medium mr-2">Região:</span>
                     <span>{project.region || 'Não especificada'}</span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-500 mt-2">
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-2">
                     <span className="font-medium mr-2">Criado em:</span>
                     <span>{new Date(project.created_at).toLocaleDateString('pt-PT')}</span>
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Link to={`/projects/${project.id}`} className="w-full">
-                    <Button variant="outline" className="w-full border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white">
+                    <Button variant="outline" className="w-full border-pt-blue text-pt-blue hover:bg-pt-blue hover:text-white dark:border-pt-green dark:text-pt-green dark:hover:bg-pt-green">
                       <FileText className="h-4 w-4 mr-2" />
                       Abrir Projeto
                     </Button>
@@ -196,20 +198,18 @@ const DashboardPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center p-12 bg-gray-50 rounded-lg border border-dashed">
-            <FileText className="h-12 w-12 mx-auto text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Sem Projetos</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Ainda não tem nenhum projeto. Comece por criar um novo projeto.
-            </p>
-            <Button 
-              onClick={() => setIsDialogOpen(true)}
-              className="mt-6 bg-pt-green text-white hover:bg-pt-blue"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Criar Primeiro Projeto
-            </Button>
-          </div>
+          <EmptyState
+            icon={FolderPlus}
+            title="Nenhum projeto criado"
+            description="Crie o seu primeiro projeto PT2030 e comece a trabalhar na candidatura com assistência de IA."
+            action={{
+              label: 'Criar Primeiro Projeto',
+              onClick: () => setIsDialogOpen(true),
+              icon: FolderPlus
+            }}
+            secondaryText="Ou importe um projeto existente"
+            minHeight="min-h-[400px]"
+          />
         )}
 
         <NewProjectDialog 

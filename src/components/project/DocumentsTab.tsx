@@ -2,9 +2,12 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Eye, Brain, Cloud, Shield, Download } from 'lucide-react';
+import { FileText, Eye, Brain, Cloud, Shield, Download, Upload, Lock } from 'lucide-react';
+import { EmptyStateWithBorder } from '@/components/EmptyState';
 import StorageUploadForm from '@/components/enhanced/StorageUploadForm';
 import { UploadedFile } from '@/types/components';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DocumentsTabProps {
   projectId: string;
@@ -12,11 +15,12 @@ interface DocumentsTabProps {
   onFileUploaded: (file: {name: string, url: string, type: string}) => void;
 }
 
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ 
-  projectId, 
-  files, 
-  onFileUploaded 
+const DocumentsTab: React.FC<DocumentsTabProps> = ({
+  projectId,
+  files,
+  onFileUploaded
 }) => {
+  const { permissions } = useProjectPermissions(projectId);
   const getFileTypeIcon = (type: string) => {
     if (type.includes('pdf')) return '📄';
     if (type.includes('excel') || type.includes('spreadsheet')) return '📊';
@@ -40,7 +44,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
       <div className="bg-gradient-to-r from-pt-green to-pt-blue text-white p-6 rounded-lg">
         <h2 className="text-2xl font-bold mb-2">Documentos do Projeto</h2>
         <p className="text-green-100 mb-3">
-          Carregue os seus documentos para alimentar a IA com contexto específico do projeto
+          {permissions.canUploadDocuments
+            ? 'Carregue os seus documentos para alimentar a IA com contexto específico do projeto'
+            : 'Documentos carregados no projeto (apenas visualização)'}
         </p>
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-1">
@@ -58,45 +64,70 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
         </div>
       </div>
 
+      {!permissions.canUploadDocuments && (
+        <Alert>
+          <Lock className="h-4 w-4" />
+          <AlertDescription>
+            Não tens permissão para fazer upload de documentos. Apenas proprietários, administradores e editores podem adicionar documentos.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <StorageUploadForm 
+          <StorageUploadForm
             title="Memória Descritiva"
             description="Documento principal com a descrição detalhada do projeto"
             projectId={projectId || ''}
             category="memoria_descritiva"
             onFileUploaded={onFileUploaded}
+            disabled={!permissions.canUploadDocuments}
           />
-          
-          <StorageUploadForm 
+
+          <StorageUploadForm
             title="Estudo de Viabilidade Económico-Financeira (EVEF)"
             description="Análise financeira e económica em formato Excel"
             projectId={projectId || ''}
             category="evef"
             acceptedFileTypes=".xls,.xlsx,.pdf,.doc,.docx"
             onFileUploaded={onFileUploaded}
+            disabled={!permissions.canUploadDocuments}
           />
         </div>
 
         <div className="space-y-6">
-          <StorageUploadForm 
+          <StorageUploadForm
             title="Dossiê de Estratégia"
             description="Documentação estratégica e planos complementares"
             projectId={projectId || ''}
             category="dossier_estrategia"
             onFileUploaded={onFileUploaded}
+            disabled={!permissions.canUploadDocuments}
           />
-          
-          <StorageUploadForm 
+
+          <StorageUploadForm
             title="Documentos Anexos"
             description="Certificações, autorizações e documentos de apoio"
             projectId={projectId || ''}
             category="anexos"
             onFileUploaded={onFileUploaded}
+            disabled={!permissions.canUploadDocuments}
           />
         </div>
       </div>
-      
+
+      {files.length === 0 && (
+        <div className="mt-8">
+          <EmptyStateWithBorder
+            icon={Upload}
+            title="Nenhum documento carregado"
+            description="Carregue documentos para ativar a geração contextual de IA (RAG). Suporta PDF, Word, Excel, e texto."
+            secondaryText="Máximo 50MB por ficheiro • Os documentos são armazenados de forma segura e processados automaticamente"
+            minHeight="min-h-[250px]"
+          />
+        </div>
+      )}
+
       {files.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-6">

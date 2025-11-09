@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { PT2030_SECTIONS } from '@/data/pt2030_sections';
+import { analytics } from '@/lib/analytics';
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -80,9 +81,12 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
         title: "Sucesso!",
         description: "Projecto criado com sucesso",
       });
-      
+
       await createDefaultSections(data.id);
-      
+
+      // Track project creation
+      analytics.projectCreated(projectType);
+
       if (onCreateProject) {
         onCreateProject({
           name: projectName,
@@ -91,7 +95,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
           id: data.id
         });
       }
-      
+
       navigate(`/projects/${data.id}`);
       
       resetForm();

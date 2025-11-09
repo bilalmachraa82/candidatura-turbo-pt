@@ -26,7 +26,7 @@ const TaskStatus: React.FC = () => {
     { id: 'upload-pgvector', name: 'Configuração do pgvector', status: 'in-progress', category: 'upload' },
     
     // Geração de Texto
-    { id: 'ai-flowise', name: 'Conexão com API do Flowise', status: 'completed', category: 'ai' },
+    { id: 'ai-openrouter', name: 'Conexão com API do OpenRouter', status: 'completed', category: 'ai' },
     { id: 'ai-endpoint', name: 'Endpoint /api/generate', status: 'completed', category: 'ai' },
     { id: 'ai-editor', name: 'Integração com SectionEditor', status: 'in-progress', category: 'ai' },
     { id: 'ai-sources', name: 'Manipulação de fontes e citações', status: 'in-progress', category: 'ai' },
